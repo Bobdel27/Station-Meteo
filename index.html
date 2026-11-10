@@ -122,6 +122,8 @@ button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:tra
 .foot{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;color:var(--muted);font-size:14px}
 .foot .grp{display:flex;gap:8px;flex-wrap:wrap}
 .err{color:var(--orange)}
+.citybar{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;min-width:0}
+.citybar[hidden]{display:none}
 .app{position:relative}
 
 /* iPad et grands écrans : tout tient sur un seul écran, sans défilement */
@@ -160,11 +162,13 @@ button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:tra
 <div class="app">
 
   <header class="top">
+    <div class="citybar" id="citybar">
     <div class="chips" id="chips"></div>
     <div class="grp" style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="ghost" id="btnSearch" aria-label="Ajouter une ville">+ Ville</button>
       <button class="ghost" id="btnGeo" aria-label="Utiliser ma position">Ma position</button>
       <button class="ghost" id="btnEdit" aria-pressed="false">Modifier</button>
+    </div>
     </div>
     <div class="clock"><b id="time">--:--</b><span id="date"></span></div>
   </header>
@@ -193,6 +197,7 @@ button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:tra
     <span id="status">Chargement…</span>
     <span class="grp">
       <button class="ghost" id="btnWake" aria-pressed="true">Écran allumé</button>
+      <button class="ghost" id="btnCities" aria-pressed="true">Villes</button>
       <button class="ghost" id="btnRefresh">Actualiser</button>
     </span>
   </footer>
@@ -402,9 +407,9 @@ function select(i){
 function addCity(c){
   const k = key(c);
   const at = cities.findIndex(x => key(x) === k || (c.name === 'Ma position' && x.name === 'Ma position'));
-  if (at >= 0){ cities[at] = c; select(at); return; }
+  if (at >= 0){ cities[at] = c; select(at); setCityBar(false); return; }
   if (cities.length >= 8){ setStatus('error', null, 'Liste pleine : retire une ville avec Modifier.'); return; }
-  cities.push(c); select(cities.length - 1);
+  cities.push(c); select(cities.length - 1); setCityBar(false);
 }
 
 /* ---------- Réseau et état ---------- */
@@ -456,8 +461,14 @@ $('#chips').addEventListener('click', e => {
     saveCities(); renderChips(); select(idx); return;
   }
   const b = e.target.closest('[data-i]');
-  if (b) select(+b.dataset.i);
+  if (b){ select(+b.dataset.i); setCityBar(false); }
 });
+function setCityBar(on){
+  $('#citybar').hidden = !on;
+  $('#btnCities').setAttribute('aria-pressed', String(on));
+  if (!on){ editing = false; $('#btnEdit').setAttribute('aria-pressed', 'false'); renderChips(); $('#search').hidden = true; }
+}
+$('#btnCities').addEventListener('click', () => setCityBar($('#citybar').hidden));
 $('#btnEdit').addEventListener('click', e => {
   editing = !editing; e.currentTarget.setAttribute('aria-pressed', String(editing)); renderChips();
 });
