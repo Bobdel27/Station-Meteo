@@ -152,6 +152,9 @@ body.night{
 .radar-bar b{font-weight:600;font-size:18px;margin-right:auto}
 #radarMap{border-radius:var(--r);overflow:hidden;border:1px solid var(--line);min-height:200px;background:#0b1016}
 #radarTime{color:var(--muted)}
+.radar{padding-bottom:calc(64px + env(safe-area-inset-bottom))}
+body.radar-open .foot{position:fixed;left:0;right:0;bottom:0;z-index:30;margin:0;background:var(--bg);border-top:1px solid var(--line);
+  padding:10px max(16px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
 .app{position:relative}
 
 /* iPad et grands écrans : tout tient sur un seul écran, sans défilement */
@@ -238,7 +241,6 @@ body.night{
   <div class="radar-bar">
     <b>Radar de pluie</b>
     <span id="radarTime"></span>
-    <span class="chipwrap"><button class="ghost" id="btnFull2" aria-pressed="false">Plein écran</button><button class="x" id="radarClose" aria-label="Fermer le radar">×</button></span>
   </div>
   <div id="radarMap"></div>
   <div class="note" id="radarNote"></div>
@@ -623,11 +625,11 @@ const fsEl = document.documentElement;
 const fsReq = fsEl.requestFullscreen || fsEl.webkitRequestFullscreen;
 const fsExit = document.exitFullscreen || document.webkitExitFullscreen;
 const fsOn = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
-if (!fsReq){ $('#btnFull').hidden = true; $('#btnFull2').hidden = true; }
-['#btnFull', '#btnFull2'].forEach(s => $(s).addEventListener('click', () => {
+if (!fsReq) $('#btnFull').hidden = true;
+$('#btnFull').addEventListener('click', () => {
   try { (fsOn() ? fsExit : fsReq).call(fsOn() ? document : fsEl); } catch(e){}
-}));
-const fsSync = () => ['#btnFull', '#btnFull2'].forEach(s => $(s).setAttribute('aria-pressed', String(fsOn())));
+});
+const fsSync = () => $('#btnFull').setAttribute('aria-pressed', String(fsOn()));
 document.addEventListener('fullscreenchange', fsSync);
 document.addEventListener('webkitfullscreenchange', fsSync);
 window.addEventListener('online', refresh);
@@ -668,8 +670,18 @@ async function openRadar(){
   $('#radarMap').innerHTML = '<iframe title="Radar de pluie" style="width:100%;height:100%;border:0" loading="lazy" allow="geolocation" ' +
     'src="https://www.rainviewer.com/map.html?loc=' + c.lat + ',' + c.lon + ',7&oFa=0&oC=1&oU=0&oCS=1&oF=0&oAP=1&c=3&o=83&lm=1&layer=radar&sm=1&sn=1"></iframe>';
 }
-$('#btnRadar').addEventListener('click', openRadar);
-$('#radarClose').addEventListener('click', () => { $('#radar').hidden = true; $('#radarMap').innerHTML = ''; });
+function closeRadar(){
+  $('#radar').hidden = true; $('#radarMap').innerHTML = '';
+  document.body.classList.remove('radar-open');
+  $('#btnRadar').setAttribute('aria-pressed', 'false');
+}
+$('#btnRadar').addEventListener('click', () => {
+  if ($('#radar').hidden){
+    document.body.classList.add('radar-open');
+    $('#btnRadar').setAttribute('aria-pressed', 'true');
+    openRadar();
+  } else closeRadar();
+});
 
 /* ---------- Démarrage ---------- */
 if (typeof ResizeObserver !== 'undefined'){
