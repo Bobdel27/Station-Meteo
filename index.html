@@ -95,7 +95,8 @@ button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:tra
 
 /* 24 h */
 .sec-t{display:flex;justify-content:space-between;gap:12px;color:var(--muted);font-size:14px;margin-bottom:8px;flex-wrap:wrap}
-.hourly svg{display:block;width:100%;height:auto}
+#hourly{position:relative;height:230px}
+.hourly svg{position:absolute;inset:0;width:100%;height:100%}
 .hourly .bar{fill:var(--cool);opacity:.28}
 .hourly .line{fill:none;stroke:var(--warm);stroke-width:3;stroke-linejoin:round;stroke-linecap:round}
 .hourly .dot{fill:var(--warm)}
@@ -106,6 +107,7 @@ button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:tra
 /* 5 jours */
 .days{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
 .day{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;display:grid;gap:8px;min-width:0}
+.day .top{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .day h3{margin:0;font-size:17px;font-weight:600;text-transform:capitalize}
 .day .c{color:var(--muted);font-size:14px}
 .day .ico{color:var(--cloud)}
@@ -120,6 +122,37 @@ button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:tra
 .foot{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;color:var(--muted);font-size:14px}
 .foot .grp{display:flex;gap:8px;flex-wrap:wrap}
 .err{color:var(--orange)}
+.app{position:relative}
+
+/* iPad et grands écrans : tout tient sur un seul écran, sans défilement */
+@media (min-width:760px) and (min-height:560px){
+  html,body{height:100%;overflow:hidden}
+  body{height:100dvh}
+  .app{height:100%;grid-template-rows:auto minmax(0,1.5fr) minmax(0,1fr) auto auto;gap:12px}
+  .search{position:absolute;top:64px;left:0;right:0;z-index:5;max-height:60vh;overflow:auto;box-shadow:0 12px 40px rgba(0,0,0,.35)}
+  .chip{padding:8px 16px}
+  .ghost{padding:8px 14px}
+  .clock b{font-size:28px}
+  .main{min-height:0;grid-template-columns:minmax(250px,1fr) 2fr;gap:12px}
+  .hero{padding:14px 18px;min-height:0;overflow:hidden}
+  .temp{font-size:clamp(64px,13vh,150px)}
+  .cond{font-size:clamp(18px,2.8vh,24px)}
+  .hero-top svg{width:clamp(44px,7vh,76px);height:clamp(44px,7vh,76px)}
+  .tiles{grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:10px}
+  .tile{padding:10px 14px;min-height:0;overflow:hidden}
+  .tv{font-size:clamp(22px,3.6vh,34px)}
+  .hourly{display:flex;flex-direction:column;min-height:0;padding:10px 18px 12px}
+  #hourly{flex:1;min-height:0;height:auto}
+  .days{grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+  .day{padding:10px 14px;gap:5px}
+  .day .ico svg{width:34px;height:34px}
+  .day h3{font-size:16px}
+  .mm{font-size:18px}
+  .foot{margin-top:-2px}
+}
+@media (min-width:760px) and (min-height:560px) and (max-height:900px){
+  .day .cd{display:none}
+}
 @media (prefers-reduced-motion:no-preference){.card,.tile,.day{transition:opacity .25s}}
 </style>
 </head>
@@ -303,7 +336,9 @@ function renderHourly(d){
   let s = h.time.findIndex(t => t.startsWith(cur.time.slice(0, 13)));
   if (s < 0) s = 0;
   const N = Math.min(24, h.time.length - s);
-  const W = 1000, H = 260, pl = 34, pr = 34, y0 = 56, y1 = H - 44;
+  const box = $('#hourly');
+  const W = Math.max(320, box.clientWidth), H = Math.max(110, box.clientHeight);
+  const pl = 30, pr = 30, y0 = 36, y1 = H - 44, base = H - 30;
   const T = h.temperature_2m.slice(s, s + N), P = h.precipitation_probability.slice(s, s + N);
   let tmin = Math.min(...T), tmax = Math.max(...T);
   if (tmax - tmin < 4){ tmax += 2; tmin -= 2; }
@@ -312,8 +347,8 @@ function renderHourly(d){
   for (let i = 0; i < N; i++){
     const x = pl + i * step;
     const y = y1 - (T[i] - tmin) / (tmax - tmin) * (y1 - y0);
-    const bh = (P[i] || 0) / 100 * (H - 44 - 30);
-    bars += `<rect class="bar" x="${(x - bw/2).toFixed(1)}" y="${(H - 44 - bh + 14).toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" rx="3"/>`;
+    const bh = (P[i] || 0) / 100 * (base - 14);
+    bars += `<rect class="bar" x="${(x - bw/2).toFixed(1)}" y="${(base - bh).toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" rx="3"/>`;
     pts.push(x.toFixed(1) + ',' + y.toFixed(1));
     dots += i === 0
       ? `<circle class="now" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="6"/>`
@@ -337,8 +372,7 @@ function renderDays(d){
     const m = WMO(dl.weather_code[i]);
     const lo = dl.temperature_2m_min[i], hi = dl.temperature_2m_max[i];
     const left = (lo - wmin) / span * 100, width = Math.max(6, (hi - lo) / span * 100);
-    return `<article class="day ${m.m}"><h3>${esc(name)}</h3>` +
-      `<div class="ico">${svgIcon(m.i, 44)}</div><div class="c">${esc(m.t)}</div>` +
+    return `<article class="day ${m.m}"><div class="top"><h3>${esc(name)}</h3><div class="ico">${svgIcon(m.i, 44)}</div></div><div class="c cd">${esc(m.t)}</div>` +
       `<div class="range" aria-hidden="true"><i style="left:${left.toFixed(1)}%;width:${width.toFixed(1)}%"></i></div>` +
       `<div class="mm"><span>${r(hi)}°</span><span>${r(lo)}°</span></div>` +
       `<div class="c">Pluie ${r(dl.precipitation_probability_max[i] || 0)} %</div></article>`;
@@ -472,6 +506,9 @@ document.addEventListener('visibilitychange', () => {
 document.addEventListener('pointerdown', () => { if (wantWake && !wl) wake(); }, {passive:true});
 
 /* ---------- Démarrage ---------- */
+if (typeof ResizeObserver !== 'undefined'){
+  new ResizeObserver(() => { const d = cache[key(cities[idx])]; if (d) renderHourly(d); }).observe($('#hourly'));
+}
 renderChips();
 $('#btnWake').setAttribute('aria-pressed', String(wantWake));
 tick(); setInterval(tick, 15000);
