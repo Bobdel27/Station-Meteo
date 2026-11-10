@@ -238,8 +238,7 @@ body.night{
   <div class="radar-bar">
     <b>Radar de pluie</b>
     <span id="radarTime"></span>
-    <button class="ghost" id="radarPlay">Pause</button>
-    <button class="ghost" id="radarClose">Fermer</button>
+    <span class="chipwrap"><button class="ghost" id="btnFull2" aria-pressed="false">Plein écran</button><button class="x" id="radarClose" aria-label="Fermer le radar">×</button></span>
   </div>
   <div id="radarMap"></div>
   <div class="note" id="radarNote"></div>
@@ -624,11 +623,11 @@ const fsEl = document.documentElement;
 const fsReq = fsEl.requestFullscreen || fsEl.webkitRequestFullscreen;
 const fsExit = document.exitFullscreen || document.webkitExitFullscreen;
 const fsOn = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
-if (!fsReq) $('#btnFull').hidden = true;
-$('#btnFull').addEventListener('click', () => {
+if (!fsReq){ $('#btnFull').hidden = true; $('#btnFull2').hidden = true; }
+['#btnFull', '#btnFull2'].forEach(s => $(s).addEventListener('click', () => {
   try { (fsOn() ? fsExit : fsReq).call(fsOn() ? document : fsEl); } catch(e){}
-});
-const fsSync = () => $('#btnFull').setAttribute('aria-pressed', String(fsOn()));
+}));
+const fsSync = () => ['#btnFull', '#btnFull2'].forEach(s => $(s).setAttribute('aria-pressed', String(fsOn())));
 document.addEventListener('fullscreenchange', fsSync);
 document.addEventListener('webkitfullscreenchange', fsSync);
 window.addEventListener('online', refresh);
@@ -665,41 +664,12 @@ function radarLoop(){
 async function openRadar(){
   const c = cities[idx];
   $('#radar').hidden = false;
-  $('#radarNote').textContent = 'Chargement du radar…';
-  $('#radarTime').textContent = '';
-  try {
-    await loadLeaflet();
-    const j = await getJson('https://api.rainviewer.com/public/weather-maps.json');
-    rframes = [].concat((j.radar && j.radar.past) || [], (j.radar && j.radar.nowcast) || []);
-    rnPast = ((j.radar && j.radar.past) || []).length;
-    if (!rframes.length) throw new Error('vide');
-    if (!rmap){
-      rmap = L.map('radarMap', {zoomControl:true, attributionControl:true});
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        subdomains:'abcd', maxZoom:12, attribution:'© OpenStreetMap © CARTO'
-      }).addTo(rmap);
-    }
-    rlayers.forEach(ly => rmap.removeLayer(ly));
-    rlayers = rframes.map(f => L.tileLayer(j.host + f.path + '/256/{z}/{x}/{y}/2/1_1.png', {
-      opacity:0, maxNativeZoom:7, maxZoom:12, attribution:'RainViewer'
-    }).addTo(rmap));
-    if (rdot) rmap.removeLayer(rdot);
-    rdot = L.circleMarker([c.lat, c.lon], {radius:6, color:'#fff', weight:2, fillColor:'#f4a93b', fillOpacity:1}).addTo(rmap);
-    rmap.setView([c.lat, c.lon], 7);
-    setTimeout(() => rmap.invalidateSize(), 50);
-    $('#radarNote').textContent = c.name + ' · données RainViewer';
-    radarShow(Math.max(0, rnPast - 1));
-    radarLoop();
-  } catch(e){
-    $('#radarNote').textContent = 'Radar indisponible pour le moment. Vérifie la connexion.';
-  }
+  $('#radarNote').textContent = c.name + ' · radar RainViewer';
+  $('#radarMap').innerHTML = '<iframe title="Radar de pluie" style="width:100%;height:100%;border:0" loading="lazy" allow="geolocation" ' +
+    'src="https://www.rainviewer.com/map.html?loc=' + c.lat + ',' + c.lon + ',7&oFa=0&oC=1&oU=0&oCS=1&oF=0&oAP=1&c=3&o=83&lm=1&layer=radar&sm=1&sn=1"></iframe>';
 }
 $('#btnRadar').addEventListener('click', openRadar);
-$('#radarClose').addEventListener('click', () => { $('#radar').hidden = true; clearTimeout(rtimer); });
-$('#radarPlay').addEventListener('click', e => {
-  rplay = !rplay; e.currentTarget.textContent = rplay ? 'Pause' : 'Lecture';
-  if (rplay) radarLoop(); else clearTimeout(rtimer);
-});
+$('#radarClose').addEventListener('click', () => { $('#radar').hidden = true; $('#radarMap').innerHTML = ''; });
 
 /* ---------- Démarrage ---------- */
 if (typeof ResizeObserver !== 'undefined'){
