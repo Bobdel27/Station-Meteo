@@ -123,7 +123,7 @@ button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:tra
 .foot .grp{display:flex;gap:8px;flex-wrap:wrap}
 .err{color:var(--orange)}
 .citybar{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;min-width:0}
-.citybar[hidden]{display:none}
+.citybar[hidden],.search[hidden]{display:none}
 .app{position:relative}
 
 /* iPad et grands écrans : tout tient sur un seul écran, sans défilement */
@@ -422,6 +422,7 @@ function setStatus(kind, at, msg){
 }
 async function refresh(){
   const my = ++reqId, c = cities[idx];
+  lastTry = Date.now();
   setStatus('loading');
   try {
     const d = await fetchWx(c);
@@ -433,7 +434,14 @@ async function refresh(){
 }
 
 /* ---------- Horloge, veille, événements ---------- */
+let lastTry = 0;
+function autoRefresh(){
+  if (document.hidden) return;
+  const d = cache[key(cities[idx])], now = Date.now();
+  if ((!d || now - d.at > 5 * 60 * 1000) && now - lastTry > 60 * 1000) refresh();
+}
 function tick(){
+  autoRefresh();
   const n = new Date();
   $('#time').textContent = n.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
   $('#date').textContent = n.toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'});
@@ -514,6 +522,8 @@ document.addEventListener('visibilitychange', () => {
   const d = cache[key(cities[idx])];
   if (!d || Date.now() - d.at > 10 * 60 * 1000) refresh();
 });
+window.addEventListener('online', refresh);
+window.addEventListener('pageshow', autoRefresh);
 document.addEventListener('pointerdown', () => { if (wantWake && !wl) wake(); }, {passive:true});
 
 /* ---------- Démarrage ---------- */
