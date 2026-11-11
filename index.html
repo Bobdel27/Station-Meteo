@@ -147,7 +147,7 @@ body.night{
 .alert[hidden]{display:none}
 .alert svg{flex:none}
 
-.moon{display:inline-flex;align-items:center;gap:6px}
+.moon{display:inline-flex;flex-wrap:wrap;align-items:center;gap:0 6px}
 .moon svg{color:var(--snow)}
 
 /* Pluie à venir */
@@ -176,18 +176,19 @@ body.radar-open .foot{position:fixed;left:0;right:0;bottom:0;z-index:30;margin:0
   .chip{padding:8px 16px}
   .ghost{padding:8px 14px}
   .clock b{font-size:28px}
-  .main{min-height:0;grid-template-columns:minmax(250px,1fr) 2fr;gap:12px}
+  .main{min-height:0;grid-template-columns:minmax(230px,1fr) 3fr;gap:12px}
+  .sunline{font-size:14px;gap:2px 12px}
+  .moon .mn{display:none}
   .hero{padding:14px 18px;min-height:0;overflow:hidden}
-  .temp{font-size:clamp(64px,13vh,150px)}
+  .temp{font-size:clamp(64px,12vh,150px)}
   .cond{font-size:clamp(18px,2.8vh,24px)}
   .hero-top svg{width:clamp(44px,7vh,76px);height:clamp(44px,7vh,76px)}
-  .tiles{grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:10px}
-  .tile:nth-child(2){grid-column:span 2}
+  .tiles{grid-template-columns:repeat(5,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:10px}
   .tv{gap:6px}
   .tv small{font-size:14px}
   .tv svg{flex:none;width:clamp(16px,2.6vh,26px);height:clamp(16px,2.6vh,26px)}
-  .tile{padding:10px 14px;min-height:0;overflow:hidden}
-  .tv{font-size:clamp(22px,3.6vh,34px)}
+  .tile{padding:8px 11px;min-height:0;overflow:hidden}
+  .tv{font-size:clamp(20px,3.2vh,32px)}
   .hourly{display:flex;flex-direction:column;min-height:0;padding:10px 18px 12px}
   #hourly{flex:1;min-height:0;height:auto}
   .days{grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
@@ -368,10 +369,10 @@ async function getJson(url){
 }
 async function fetchWx(c){
   const f = 'https://api.open-meteo.com/v1/forecast?latitude=' + c.lat + '&longitude=' + c.lon +
-    '&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m' +
-    '&hourly=temperature_2m,precipitation_probability,precipitation,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m&past_hours=3' +
+    '&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m,cloud_cover' +
+    '&hourly=temperature_2m,precipitation_probability,precipitation,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m,snowfall,snow_depth,freezing_level_height&past_hours=3' +
     '&minutely_15=precipitation' +
-    '&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_probability_max,precipitation_sum,wind_gusts_10m_max' +
+    '&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_probability_max,precipitation_sum,sunshine_duration,wind_gusts_10m_max' +
     '&timezone=auto&forecast_days=5';
   const a = 'https://air-quality-api.open-meteo.com/v1/air-quality?latitude=' + c.lat + '&longitude=' + c.lon +
     '&current=european_aqi&timezone=auto';
@@ -383,10 +384,26 @@ async function fetchWx(c){
 
 /* ---------- Lune et durée du jour ---------- */
 const MOONS = ['Nouvelle lune','Premier croissant','Premier quartier','Gibbeuse croissante','Pleine lune','Gibbeuse décroissante','Dernier quartier','Dernier croissant'];
+function moonTime(k){
+  const T = k / 1236.85, D = Math.PI / 180, full = k % 1 !== 0, sn = Math.sin;
+  const M = (2.5534 + 29.1053567 * k - 0.0000014 * T * T) * D;
+  const Mp = (201.5643 + 385.81693528 * k + 0.0107582 * T * T) * D;
+  const F = (160.7108 + 390.67050284 * k - 0.0016118 * T * T) * D;
+  const E = 1 - 0.002516 * T - 0.0000074 * T * T;
+  let j = 2451550.09766 + 29.530588861 * k + 0.00015437 * T * T;
+  j += (full ? -0.40614 * sn(Mp) + 0.17302 * E * sn(M) + 0.01614 * sn(2 * Mp) + 0.01043 * sn(2 * F) + 0.00734 * E * sn(Mp - M) - 0.00515 * E * sn(Mp + M) + 0.00209 * E * E * sn(2 * M)
+               : -0.40720 * sn(Mp) + 0.17241 * E * sn(M) + 0.01608 * sn(2 * Mp) + 0.01039 * sn(2 * F) + 0.00739 * E * sn(Mp - M) - 0.00514 * E * sn(Mp + M) + 0.00208 * E * E * sn(2 * M))
+     - 0.00111 * sn(Mp - 2 * F) - 0.00057 * sn(Mp + 2 * F) + 0.00056 * E * sn(2 * Mp + M) - 0.00042 * sn(3 * Mp) + 0.00042 * E * sn(M + 2 * F) + 0.00038 * E * sn(M - 2 * F) - 0.00024 * E * sn(2 * Mp - M);
+  return (j - 2440587.5) * 86400000;
+}
 function moonPhase(date){
-  const syn = 29.530588853, ref = Date.UTC(2000, 0, 6, 18, 14);
-  const p = (((date.getTime() - ref) / 86400000) % syn + syn) % syn / syn;
-  return {p, name: MOONS[Math.floor(p * 8 + .5) % 8]};
+  const now = date.getTime();
+  let k = Math.floor((now - Date.UTC(2000, 0, 6, 18, 14)) / 86400000 / 29.530588853);
+  while (moonTime(k) > now) k--;
+  while (moonTime(k + 1) <= now) k++;
+  const t0 = moonTime(k), t1 = moonTime(k + 1), tf = moonTime(k + .5);
+  const p = (now - t0) / (t1 - t0);
+  return {p, name: MOONS[Math.floor(p * 8 + .5) % 8], next: now < tf ? {full:true, t:tf} : {full:false, t:t1}};
 }
 function moonSvg(p){
   const k = Math.cos(2 * Math.PI * p), rx = (Math.abs(k) * 9).toFixed(2), sw = k > 0 ? 0 : 1;
@@ -414,8 +431,7 @@ function renderHero(d){
     `<div class="feels">Ressenti ${r(c.apparent_temperature)}°C</div>` +
     `<div class="rainsoon">${esc(rainSoon(d))}</div>` +
     `<div class="sunline"><span>Lever <b>${hm(dly.sunrise[0])}</b></span><span>Coucher <b>${hm(dly.sunset[0])}</b></span>` +
-    `<span>Jour <b>${dayLen(dly.sunrise[0], dly.sunset[0])}</b></span>` +
-    `<span class="moon">${moonSvg(mp.p)}${mp.name}</span></div>`;
+    `<span class="moon">${moonSvg(mp.p)}<span class="mn">${mp.name} · </span>${mp.next.full ? 'Pleine lune' : 'Nouvelle lune'}<b>${new Date(mp.next.t).toLocaleDateString('fr-FR', {day:'numeric', month:'short'})}</b></span></div>`;
 }
 
 function tile(label, value, sub, cls, pct){
@@ -440,16 +456,32 @@ function renderTiles(d){
     ptxt = `${lab} · ${dp > 0 ? '+' : dp < 0 ? '−' : ''}${Math.abs(dp).toFixed(1)} hPa / 3 h`;
     parrow = `<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(${rot}deg)" aria-hidden="true"><line x1="12" y1="4" x2="12" y2="20"/><polyline points="6,14 12,20 18,14"/></svg>`;
   }
+  const cc = c.cloud_cover, sun = dly.sunshine_duration ? dly.sunshine_duration[0] : null;
+  let tmin = null, frostAt = -1, snow = null;
+  const e24 = Math.min(s0 + 24, hh.time.length);
+  for (let i = s0; i < e24; i++){
+    const t = hh.temperature_2m[i];
+    if (t != null){ if (tmin == null || t < tmin) tmin = t; if (frostAt < 0 && t <= 0) frostAt = i; }
+  }
+  if (hh.snowfall){ snow = 0; for (let i = s0; i < e24; i++) snow += hh.snowfall[i] || 0; }
+  const depth = hh.snow_depth ? (hh.snow_depth[s0] || 0) * 100 : 0;
+  const fl = hh.freezing_level_height ? hh.freezing_level_height[s0] : null;
+  const frostCls = tmin == null ? '' : tmin <= -5 ? 'bad' : tmin <= 0 ? 'orange' : tmin <= 2 ? 'warn' : 'good';
+  const frostTxt = tmin == null ? 'Indisponible' : frostAt === s0 ? 'Gel en cours' : frostAt > s0 ? 'Gel dès ' + hh.time[frostAt].slice(11, 13) + ' h' : tmin <= 2 ? 'Gel au sol possible' : 'Pas de gel';
+  const snowTxt = snow > .05 ? (fl != null ? 'Isotherme 0 °C : ' + (Math.round(fl / 50) * 50) + ' m' : 'Neige prévue') : depth >= 1 ? 'Au sol : ' + r(depth) + ' cm' : 'Pas de neige';
   const arrow = `<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(${r(c.wind_direction_10m + 180)}deg)" aria-hidden="true"><line x1="12" y1="4" x2="12" y2="20"/><polyline points="6,14 12,20 18,14"/></svg>`;
   $('#tiles').innerHTML =
     tile('Humidité', `${r(c.relative_humidity_2m)}<small>%</small>`, '', 'cool', c.relative_humidity_2m) +
-    tile('Vent', `${r(c.wind_speed_10m)}<small>km/h</small>${arrow}`, `${compass(c.wind_direction_10m)} · rafales ${r(c.wind_gusts_10m)} km/h` + ((dly.wind_gusts_10m_max || [])[0] != null ? ` (max jour ${r(dly.wind_gusts_10m_max[0])})` : ''), '', null) +
+    tile('Vent', `${r(c.wind_speed_10m)}<small>km/h</small>${arrow}`, `${compass(c.wind_direction_10m)} · rafales ${r(c.wind_gusts_10m)} km/h`, '', null) +
     tile('Pression', `${r(c.surface_pressure)}<small>hPa</small>${parrow}`, ptxt, '', null) +
     tile(rain24 == null ? 'Pluie' : 'Pluie 24 h', `${(rain24 == null ? c.precipitation : rain24).toFixed(1)}<small>mm</small>`, `Actuel ${c.precipitation.toFixed(1)} mm · max ${r(dly.precipitation_probability_max[0] || 0)} %`, 'cool', null) +
     tile('Indice UV max', `${uv.toFixed(1)}`, uvI[0], uvI[1], uv / 11 * 100) +
     tile('Qualité de l\'air', d.aqi == null ? '--' : `${r(d.aqi)}`, ai[0] === '--' ? 'Indisponible' : ai[0], ai[1], d.aqi == null ? null : d.aqi) +
     tile('Pollens', pi ? (pi.lvl ? `${pi.v < 10 ? pi.v.toFixed(1) : r(pi.v)}<small>gr/m³</small>` : 'Aucun') : '--',
-      pi ? (pi.lvl ? `${pi.name} · ${POLLV[pi.lvl]}` : 'Hors saison') : 'Indisponible', pi ? POLLC[pi.lvl] : '', pi && pi.lvl ? pi.lvl / 4 * 100 : null);
+      pi ? (pi.lvl ? `${pi.name} · ${POLLV[pi.lvl]}` : 'Hors saison') : 'Indisponible', pi ? POLLC[pi.lvl] : '', pi && pi.lvl ? pi.lvl / 4 * 100 : null) +
+    tile('Nuages', cc == null ? '--' : `${r(cc)}<small>%</small>`, sun == null ? '' : 'Soleil ' + dur(Math.round(sun / 60)) + ' aujourd’hui', '', cc == null ? null : cc) +
+    tile('Gel 24 h', tmin == null ? '--' : `${String(r(tmin)).replace('-', '−')}<small>°C min</small>`, frostTxt, frostCls, null) +
+    tile('Neige 24 h', snow == null ? '--' : `${snow.toFixed(1)}<small>cm</small>`, snow == null ? 'Indisponible' : snowTxt, snow > .05 ? 'cool' : '', null);
 }
 
 function renderHourly(d){
