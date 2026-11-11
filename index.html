@@ -98,23 +98,27 @@ button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:tra
 .ts{text-align:center}
 .tile .tl{color:var(--fg)}
 .tile .tv,.tile .tv small{color:var(--cool)}
-.tile .ts{color:var(--warm)}
+.tile .ts{color:var(--fg)}
+.tile .tl,.tile .ts{font-size:var(--fs,15px)}
+.q{color:var(--warm);font-weight:inherit}
+#status:not(.err){color:var(--fg)}
+body.measure #tiles .tl,body.measure #tiles .ts,body.measure .day .c{white-space:nowrap}
 .meter{height:6px;border-radius:3px;background:var(--surface-2);margin-top:auto;overflow:hidden}
 .meter i{display:block;height:100%;border-radius:3px;background:currentColor}
 .good{color:var(--good)}.warn{color:var(--warn)}.orange{color:var(--orange)}.bad{color:var(--bad)}.cool{color:var(--cool)}
 
 /* 24 h */
-.sec-t{display:flex;justify-content:space-between;gap:12px;color:var(--muted);font-size:14px;margin-bottom:8px;flex-wrap:wrap}
+.sec-t{display:flex;justify-content:space-between;gap:12px;color:var(--fg);font-size:14px;margin-bottom:8px;flex-wrap:wrap}
 #hourly{position:relative;height:230px}
 .hourly svg{position:absolute;inset:0;width:100%;height:100%}
 .hourly .bar{fill:var(--cool);opacity:.28}
 .hourly .line{fill:none;stroke:var(--warm);stroke-width:3;stroke-linejoin:round;stroke-linecap:round}
 .hourly .dot{fill:var(--warm)}
 .hourly .now{fill:var(--bg);stroke:var(--warm);stroke-width:3}
-.hourly .tv-t{fill:var(--fg);font-size:17px;font-weight:500;text-anchor:middle}
-.hourly .hr-t{fill:var(--muted);font-size:14px;text-anchor:middle}
+.hourly .tv-t{fill:var(--warm);font-size:17px;font-weight:500;text-anchor:middle}
+.hourly .hr-t{fill:var(--fg);font-size:14px;text-anchor:middle}
 .hourly .wd path{fill:none;stroke:var(--cloud);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.hourly .wi-t{fill:var(--muted);font-size:14px}
+.hourly .wi-t{fill:var(--warm);font-size:14px}
 .hourly .gu path{stroke:var(--warn)}
 .hourly .wi-t.gu{fill:var(--warn)}
 
@@ -123,7 +127,7 @@ button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:tra
 .day{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;display:grid;gap:8px;min-width:0}
 .day .top{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .day h3{margin:0;font-size:17px;font-weight:600;text-transform:capitalize}
-.day .c{color:var(--muted);font-size:14px}
+.day .c{color:var(--fg);font-size:var(--fs,15px)}
 .day .ico{color:var(--cloud)}
 .day.rain .ico{color:var(--cool)}.day.clear .ico{color:var(--warm)}.day.storm .ico{color:var(--orange)}.day.snow .ico{color:var(--snow)}
 .range{position:relative;height:6px;border-radius:3px;background:var(--surface-2)}
@@ -158,7 +162,7 @@ body.night{
 .moon svg{color:var(--snow)}
 
 /* Pluie à venir */
-.rainsoon{color:var(--cool);font-size:clamp(14px,2.2vh,18px);min-height:1.2em}
+.rainsoon{color:var(--fg);font-size:clamp(14px,2.2vh,18px);min-height:1.2em}
 
 /* Radar */
 .radar{position:fixed;inset:0;z-index:20;background:var(--bg);display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:10px;
@@ -274,6 +278,7 @@ body.radar-open .foot{position:fixed;left:0;right:0;bottom:0;z-index:30;margin:0
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const r = v => Math.round(v);
+const q = x => '<b class="q">' + x + '</b>';
 const store = {
   get(k, d){ try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch(e){ return d; } },
   set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
@@ -435,8 +440,8 @@ function renderHero(d){
   el.innerHTML =
     `<div class="hero-top">${svgIcon(iconFor(m.i, night), 84)}<div class="cond">${esc(m.t)}</div></div>` +
     `<div class="temp">${r(c.temperature_2m)}<span>°C</span></div>` +
-    `<div class="feels">Ressenti ${r(c.apparent_temperature)}°C</div>` +
-    `<div class="rainsoon">${esc(rainSoon(d))}</div>` +
+    `<div class="feels">Ressenti ${q(r(c.apparent_temperature) + '°C')}</div>` +
+    `<div class="rainsoon">${rainSoon(d)}</div>` +
     `<div class="sunline"><span>Lever <b>${hm(dly.sunrise[0])}</b></span><span>Coucher <b>${hm(dly.sunset[0])}</b></span>` +
     `<span class="moon">${moonSvg(mp.p)}<span class="mn">${mp.name} · </span>${mp.next.full ? 'Pleine lune' : 'Nouvelle lune'}<b>${new Date(mp.next.t).toLocaleDateString('fr-FR', {day:'numeric', month:'short'})}</b></span></div>`;
 }
@@ -460,7 +465,7 @@ function renderTiles(d){
     const dp = hh.surface_pressure[s0] - hh.surface_pressure[s0 - 3];
     const lab = dp >= 1 ? 'En hausse' : dp <= -1 ? 'En baisse' : 'Stable';
     const rot = dp >= 1 ? 180 : dp <= -1 ? 0 : -90;
-    ptxt = `${lab} · ${dp > 0 ? '+' : dp < 0 ? '−' : ''}${Math.abs(dp).toFixed(1)} hPa / 3 h`;
+    ptxt = `${lab} · ${q((dp > 0 ? '+' : dp < 0 ? '−' : '') + Math.abs(dp).toFixed(1) + ' hPa')} / 3 h`;
     parrow = `<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(${rot}deg)" aria-hidden="true"><line x1="12" y1="4" x2="12" y2="20"/><polyline points="6,14 12,20 18,14"/></svg>`;
   }
   const cc = c.cloud_cover, sun = dly.sunshine_duration ? dly.sunshine_duration[0] : null;
@@ -474,16 +479,16 @@ function renderTiles(d){
   const depth = hh.snow_depth ? (hh.snow_depth[s0] || 0) * 100 : 0;
   const fl = hh.freezing_level_height ? hh.freezing_level_height[s0] : null;
   const frostCls = tmin == null ? '' : tmin <= -5 ? 'bad' : tmin <= 0 ? 'orange' : tmin <= 2 ? 'warn' : 'good';
-  const frostTxt = tmin == null ? 'Indisponible' : frostAt === s0 ? 'Gel en cours' : frostAt > s0 ? 'Gel dès ' + hh.time[frostAt].slice(11, 13) + ' h' : tmin <= 2 ? 'Gel au sol possible' : 'Pas de gel';
-  const snowTxt = snow > .05 ? (fl != null ? 'Isotherme 0 °C : ' + (Math.round(fl / 50) * 50) + ' m' : 'Neige prévue') : depth >= 1 ? 'Au sol : ' + r(depth) + ' cm' : 'Pas de neige';
+  const frostTxt = tmin == null ? 'Indisponible' : frostAt === s0 ? 'Gel en cours' : frostAt > s0 ? 'Gel dès ' + q(hh.time[frostAt].slice(11, 13) + ' h') : tmin <= 2 ? 'Gel au sol possible' : 'Pas de gel';
+  const snowTxt = snow > .05 ? (fl != null ? 'Isotherme 0 °C : ' + q((Math.round(fl / 50) * 50) + ' m') : 'Neige prévue') : depth >= 1 ? 'Au sol : ' + q(r(depth) + ' cm') : 'Pas de neige';
   const arrow = `<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(${r(c.wind_direction_10m + 180)}deg)" aria-hidden="true"><line x1="12" y1="4" x2="12" y2="20"/><polyline points="6,14 12,20 18,14"/></svg>`;
   $('#tiles').innerHTML =
-    tile(rain24 == null ? 'Pluie' : 'Pluie 24 h', `${(rain24 == null ? c.precipitation : rain24).toFixed(1)}<small>mm</small>`, `Actuel ${c.precipitation.toFixed(1)} mm · max ${r(dly.precipitation_probability_max[0] || 0)} %`, 'cool', null) +
+    tile(rain24 == null ? 'Pluie' : 'Pluie 24 h', `${(rain24 == null ? c.precipitation : rain24).toFixed(1)}<small>mm</small>`, `Actuel ${q(c.precipitation.toFixed(1) + ' mm')} · max ${q(r(dly.precipitation_probability_max[0] || 0) + ' %')}`, 'cool', null) +
     tile('Pression', `${r(c.surface_pressure)}<small>hPa</small>${parrow}`, ptxt, '', null) +
     tile('Neige 24 h', snow == null ? '--' : `${snow.toFixed(1)}<small>cm</small>`, snow == null ? 'Indisponible' : snowTxt, snow > .05 ? 'cool' : '', null) +
-    tile('Nuages', cc == null ? '--' : `${r(cc)}<small>%</small>`, sun == null ? '' : 'Soleil ' + dur(Math.round(sun / 60)) + ' aujourd’hui', '', cc == null ? null : cc) +
+    tile('Nuages', cc == null ? '--' : `${r(cc)}<small>%</small>`, sun == null ? '' : 'Soleil ' + q(dur(Math.round(sun / 60))) + ' aujourd’hui', '', cc == null ? null : cc) +
     tile('Qualité de l\'air', d.aqi == null ? '--' : `${r(d.aqi)}`, ai[0] === '--' ? 'Indisponible' : ai[0], ai[1], d.aqi == null ? null : d.aqi) +
-    tile('Vent', `${r(c.wind_speed_10m)}<small>km/h</small>${arrow}`, `${compass(c.wind_direction_10m)} · rafales ${r(c.wind_gusts_10m)} km/h`, '', null) +
+    tile('Vent', `${r(c.wind_speed_10m)}<small>km/h</small>${arrow}`, `${q(compass(c.wind_direction_10m))} · rafales ${q(r(c.wind_gusts_10m) + ' km/h')}`, '', null) +
     tile('Humidité', `${r(c.relative_humidity_2m)}<small>%</small>`, '', 'cool', c.relative_humidity_2m) +
     tile('Gel 24 h', tmin == null ? '--' : `${String(r(tmin)).replace('-', '−')}<small>°C min</small>`, frostTxt, frostCls, null) +
     tile('Indice UV max', `${uv.toFixed(1)}`, uvI[0], uvI[1], uv / 11 * 100) +
@@ -541,7 +546,7 @@ function renderDays(d){
     return `<article class="day ${m.m}"><div class="top"><h3>${esc(name)}</h3><div class="ico">${svgIcon(m.i, 44)}</div></div><div class="c cd">${esc(m.t)}</div>` +
       `<div class="range" aria-hidden="true"><i style="left:${left.toFixed(1)}%;width:${width.toFixed(1)}%"></i></div>` +
       `<div class="mm"><span>${r(hi)}°</span><span>${r(lo)}°</span></div>` +
-      `<div class="c">Pluie ${r(dl.precipitation_probability_max[i] || 0)} %${dl.precipitation_sum ? ' · ' + (dl.precipitation_sum[i] || 0).toFixed(1) + ' mm' : ''}</div></article>`;
+      `<div class="c">Pluie ${q(r(dl.precipitation_probability_max[i] || 0) + ' %')}${dl.precipitation_sum ? ' · ' + q((dl.precipitation_sum[i] || 0).toFixed(1) + ' mm') : ''}</div></article>`;
   }).join('');
 }
 
@@ -559,13 +564,13 @@ function rainSoon(d){
   const wet = i => (P[i] || 0) >= 0.1;
   const end = Math.min(P.length, s + 13);
   if (wet(s)){
-    for (let i = s + 1; i < end; i++) if (!wet(i)) return 'Pluie en cours, fin vers ' + hm(m.time[i]);
+    for (let i = s + 1; i < end; i++) if (!wet(i)) return 'Pluie en cours, fin vers ' + q(hm(m.time[i]));
     return 'Pluie en cours pour les prochaines heures';
   }
   for (let i = s + 1; i < end; i++){
-    if (wet(i)) return 'Pluie dans ' + dur(Math.max(1, Math.round((new Date(m.time[i]).getTime() - now) / 60000)));
+    if (wet(i)) return 'Pluie dans ' + q(dur(Math.max(1, Math.round((new Date(m.time[i]).getTime() - now) / 60000))));
   }
-  return 'Pas de pluie dans les 3 h';
+  return 'Pas de pluie dans les ' + q('3 h');
 }
 
 function renderAlerts(d){
@@ -599,7 +604,17 @@ function applyNight(d){
   if (tc) tc.setAttribute('content', night ? '#000000' : '#0b1016');
 }
 
-function render(d){ applyNight(d); renderAlerts(d); renderHero(d); renderTiles(d); renderHourly(d); renderDays(d); }
+function fitFonts(){
+  const els = [...document.querySelectorAll('#tiles .tl, #tiles .ts, .day .c')];
+  if (!els.length) return;
+  const root = document.documentElement.style;
+  let fs = 22;
+  document.body.classList.add('measure');
+  root.setProperty('--fs', fs + 'px');
+  while (fs > 14 && els.some(e => e.scrollWidth > e.clientWidth + 1)){ fs -= .5; root.setProperty('--fs', fs + 'px'); }
+  document.body.classList.remove('measure');
+}
+function render(d){ applyNight(d); renderAlerts(d); renderHero(d); renderTiles(d); renderHourly(d); renderDays(d); fitFonts(); }
 
 /* ---------- Villes ---------- */
 function renderChips(){
@@ -632,7 +647,7 @@ function setStatus(kind, at, msg){
   const el = $('#status'), t = at ? new Date(at).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}) : '';
   el.className = kind === 'error' ? 'err' : '';
   if (kind === 'loading') el.textContent = 'Actualisation…';
-  else if (kind === 'ok') el.textContent = 'Mis à jour à ' + t + ' · données Open-Meteo';
+  else if (kind === 'ok') el.innerHTML = 'Mis à jour à ' + q(t) + ' · données Open-Meteo';
   else el.textContent = msg || (at ? 'Pas de connexion. Données de ' + t + ' affichées.' : 'Impossible de récupérer la météo. Vérifie la connexion.');
 }
 async function refresh(){
@@ -817,6 +832,10 @@ document.addEventListener('touchend', e => {
 if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
   window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
 }
+
+let fitT = 0;
+window.addEventListener('resize', () => { clearTimeout(fitT); fitT = setTimeout(fitFonts, 150); });
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitFonts);
 
 /* ---------- Démarrage ---------- */
 if (typeof ResizeObserver !== 'undefined'){
