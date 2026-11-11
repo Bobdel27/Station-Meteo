@@ -146,6 +146,7 @@ body.measure #tiles .tl,body.measure #tiles .ts,body.measure .day .c{white-space
 .err{color:var(--orange)}
 .citybar{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;min-width:0}
 .citybar[hidden],.search[hidden]{display:none}
+body.fs .citybar,body.fs .search{display:none}
 
 /* Mode nuit automatique : palette atténuée quand il fait nuit sur la ville affichée */
 body.night{
@@ -772,7 +773,7 @@ if (!fsReq) $('#btnFull').hidden = true;
 $('#btnFull').addEventListener('click', () => {
   try { (fsOn() ? fsExit : fsReq).call(fsOn() ? document : fsEl); } catch(e){}
 });
-const fsSync = () => $('#btnFull').setAttribute('aria-pressed', String(fsOn()));
+const fsSync = () => { $('#btnFull').setAttribute('aria-pressed', String(fsOn())); document.body.classList.toggle('fs', fsOn()); };
 document.addEventListener('fullscreenchange', fsSync);
 document.addEventListener('webkitfullscreenchange', fsSync);
 window.addEventListener('online', refresh);
