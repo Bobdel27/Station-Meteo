@@ -106,6 +106,10 @@ button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:tra
 .hourly .now{fill:var(--bg);stroke:var(--warm);stroke-width:3}
 .hourly .tv-t{fill:var(--fg);font-size:17px;font-weight:500;text-anchor:middle}
 .hourly .hr-t{fill:var(--muted);font-size:14px;text-anchor:middle}
+.hourly .wd path{fill:none;stroke:var(--cloud);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.hourly .wi-t{fill:var(--muted);font-size:14px}
+.hourly .gu path{stroke:var(--warn)}
+.hourly .wi-t.gu{fill:var(--warn)}
 
 /* 5 jours */
 .days{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
@@ -177,7 +181,11 @@ body.radar-open .foot{position:fixed;left:0;right:0;bottom:0;z-index:30;margin:0
   .temp{font-size:clamp(64px,13vh,150px)}
   .cond{font-size:clamp(18px,2.8vh,24px)}
   .hero-top svg{width:clamp(44px,7vh,76px);height:clamp(44px,7vh,76px)}
-  .tiles{grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:10px}
+  .tiles{grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:10px}
+  .tile:nth-child(2){grid-column:span 2}
+  .tv{gap:6px}
+  .tv small{font-size:14px}
+  .tv svg{flex:none;width:clamp(16px,2.6vh,26px);height:clamp(16px,2.6vh,26px)}
   .tile{padding:10px 14px;min-height:0;overflow:hidden}
   .tv{font-size:clamp(22px,3.6vh,34px)}
   .hourly{display:flex;flex-direction:column;min-height:0;padding:10px 18px 12px}
@@ -225,7 +233,7 @@ body.radar-open .foot{position:fixed;left:0;right:0;bottom:0;z-index:30;margin:0
   </section>
 
   <section class="card hourly">
-    <div class="sec-t"><span>Prochaines 24 h</span><span>Courbe : température · barres : probabilité de pluie</span></div>
+    <div class="sec-t"><span>Prochaines 24 h</span><span>Courbe : température · barres : probabilité de pluie · bas : vent (km/h)</span></div>
     <div id="hourly"></div>
   </section>
 
@@ -333,6 +341,24 @@ function aqiInfo(v){
   return ['Très mauvais', 'bad', v];
 }
 
+const POL = {
+  grass:['Graminées',[20,50,150]], birch:['Bouleau',[15,90,1500]], alder:['Aulne',[15,90,1500]],
+  olive:['Olivier',[15,90,1500]], mugwort:['Armoise',[10,50,150]], ragweed:['Ambroisie',[5,20,100]]
+};
+const POLLV = ['Aucun','Faible','Modéré','Élevé','Très élevé'], POLLC = ['good','good','warn','orange','bad'];
+function pollenInfo(p){
+  if (!p) return null;
+  let best = null;
+  for (const k in POL){
+    const v = p[k + '_pollen'];
+    if (v == null) continue;
+    const t = POL[k][1], rel = v / t[0];
+    const lvl = v <= 0 ? 0 : v < t[0] ? 1 : v < t[1] ? 2 : v < t[2] ? 3 : 4;
+    if (!best || lvl > best.lvl || (lvl === best.lvl && rel > best.rel)) best = {name:POL[k][0], v, lvl, rel};
+  }
+  return best;
+}
+
 async function getJson(url){
   const opt = {};
   if (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) opt.signal = AbortSignal.timeout(10000);
@@ -343,14 +369,16 @@ async function getJson(url){
 async function fetchWx(c){
   const f = 'https://api.open-meteo.com/v1/forecast?latitude=' + c.lat + '&longitude=' + c.lon +
     '&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m' +
-    '&hourly=temperature_2m,precipitation_probability,precipitation,surface_pressure&past_hours=3' +
+    '&hourly=temperature_2m,precipitation_probability,precipitation,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m&past_hours=3' +
     '&minutely_15=precipitation' +
     '&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_probability_max,precipitation_sum,wind_gusts_10m_max' +
     '&timezone=auto&forecast_days=5';
   const a = 'https://air-quality-api.open-meteo.com/v1/air-quality?latitude=' + c.lat + '&longitude=' + c.lon +
     '&current=european_aqi&timezone=auto';
-  const [w, air] = await Promise.all([getJson(f), getJson(a).catch(() => null)]);
-  return {w, aqi: air && air.current ? air.current.european_aqi : null, at: Date.now()};
+  const pu = 'https://air-quality-api.open-meteo.com/v1/air-quality?latitude=' + c.lat + '&longitude=' + c.lon +
+    '&current=alder_pollen,birch_pollen,grass_pollen,mugwort_pollen,olive_pollen,ragweed_pollen&timezone=auto';
+  const [w, air, pol] = await Promise.all([getJson(f), getJson(a).catch(() => null), getJson(pu).catch(() => null)]);
+  return {w, aqi: air && air.current ? air.current.european_aqi : null, pol: pol && pol.current ? pol.current : null, at: Date.now()};
 }
 
 /* ---------- Lune et durée du jour ---------- */
@@ -400,7 +428,7 @@ function renderTiles(d){
   const c = d.w.current, dly = d.w.daily;
   const uv = dly.uv_index_max[0];
   const uvI = uv < 3 ? ['Faible','good'] : uv < 6 ? ['Modéré','warn'] : uv < 8 ? ['Élevé','orange'] : ['Très élevé','bad'];
-  const ai = aqiInfo(d.aqi);
+  const ai = aqiInfo(d.aqi), pi = pollenInfo(d.pol);
   const hh = d.w.hourly, s0 = hourStart(d);
   let rain24 = null;
   if (hh.precipitation){ rain24 = 0; for (let i = s0; i < Math.min(s0 + 24, hh.precipitation.length); i++) rain24 += hh.precipitation[i] || 0; }
@@ -415,11 +443,13 @@ function renderTiles(d){
   const arrow = `<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(${r(c.wind_direction_10m + 180)}deg)" aria-hidden="true"><line x1="12" y1="4" x2="12" y2="20"/><polyline points="6,14 12,20 18,14"/></svg>`;
   $('#tiles').innerHTML =
     tile('Humidité', `${r(c.relative_humidity_2m)}<small>%</small>`, '', 'cool', c.relative_humidity_2m) +
-    tile('Vent', `${r(c.wind_speed_10m)}<small>km/h</small>${arrow}`, `${compass(c.wind_direction_10m)} · rafales ${r(c.wind_gusts_10m)} km/h`, '', null) +
+    tile('Vent', `${r(c.wind_speed_10m)}<small>km/h</small>${arrow}`, `${compass(c.wind_direction_10m)} · rafales ${r(c.wind_gusts_10m)} km/h` + ((dly.wind_gusts_10m_max || [])[0] != null ? ` (max jour ${r(dly.wind_gusts_10m_max[0])})` : ''), '', null) +
     tile('Pression', `${r(c.surface_pressure)}<small>hPa</small>${parrow}`, ptxt, '', null) +
     tile(rain24 == null ? 'Pluie' : 'Pluie 24 h', `${(rain24 == null ? c.precipitation : rain24).toFixed(1)}<small>mm</small>`, `Actuel ${c.precipitation.toFixed(1)} mm · max ${r(dly.precipitation_probability_max[0] || 0)} %`, 'cool', null) +
     tile('Indice UV max', `${uv.toFixed(1)}`, uvI[0], uvI[1], uv / 11 * 100) +
-    tile('Qualité de l\'air', d.aqi == null ? '--' : `${r(d.aqi)}`, ai[0] === '--' ? 'Indisponible' : ai[0], ai[1], d.aqi == null ? null : d.aqi);
+    tile('Qualité de l\'air', d.aqi == null ? '--' : `${r(d.aqi)}`, ai[0] === '--' ? 'Indisponible' : ai[0], ai[1], d.aqi == null ? null : d.aqi) +
+    tile('Pollens', pi ? (pi.lvl ? `${pi.v < 10 ? pi.v.toFixed(1) : r(pi.v)}<small>gr/m³</small>` : 'Aucun') : '--',
+      pi ? (pi.lvl ? `${pi.name} · ${POLLV[pi.lvl]}` : 'Hors saison') : 'Indisponible', pi ? POLLC[pi.lvl] : '', pi && pi.lvl ? pi.lvl / 4 * 100 : null);
 }
 
 function renderHourly(d){
@@ -429,8 +459,9 @@ function renderHourly(d){
   const N = Math.min(24, h.time.length - s);
   const box = $('#hourly');
   const W = Math.max(320, box.clientWidth), H = Math.max(110, box.clientHeight);
-  const pl = 30, pr = 30, y0 = 36, y1 = H - 44, base = H - 30;
+  const pl = 30, pr = 30, y0 = 36, y1 = H - 62, base = H - 48;
   const T = h.temperature_2m.slice(s, s + N), P = h.precipitation_probability.slice(s, s + N);
+  const WS = h.wind_speed_10m ? h.wind_speed_10m.slice(s, s + N) : null, WD = h.wind_direction_10m ? h.wind_direction_10m.slice(s, s + N) : null, WG = h.wind_gusts_10m ? h.wind_gusts_10m.slice(s, s + N) : null;
   let tmin = Math.min(...T), tmax = Math.max(...T);
   if (tmax - tmin < 4){ tmax += 2; tmin -= 2; }
   const step = (W - pl - pr) / (N - 1), bw = step * .55;
@@ -446,7 +477,12 @@ function renderHourly(d){
       : `<circle class="dot" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5"/>`;
     if (i % 3 === 0){
       labels += `<text class="tv-t" x="${x.toFixed(1)}" y="${(y - 16).toFixed(1)}">${r(T[i])}°</text>`;
-      labels += `<text class="hr-t" x="${x.toFixed(1)}" y="${H - 14}">${i === 0 ? 'Maint.' : h.time[s + i].slice(11, 13) + ' h'}</text>`;
+      labels += `<text class="hr-t" x="${x.toFixed(1)}" y="${H - 10}">${i === 0 ? 'Maint.' : h.time[s + i].slice(11, 13) + ' h'}</text>`;
+      if (WS && WD && WS[i] != null){
+        const gu = WG && WG[i] != null && WG[i] >= 60 ? ' gu' : '';
+        labels += `<g class="wd${gu}" transform="translate(${(x - 13).toFixed(1)} ${H - 34})"><g transform="rotate(${r((WD[i] || 0) + 180)})"><path d="M0-6V6M-4 2L0 6L4 2"/></g></g>`;
+        labels += `<text class="wi-t${gu}" x="${(x - 5).toFixed(1)}" y="${H - 29}">${r(WS[i])}</text>`;
+      }
     }
   }
   $('#hourly').innerHTML =
