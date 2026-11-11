@@ -283,7 +283,7 @@ body.radar-open .foot{position:fixed;left:0;right:0;bottom:0;z-index:30;margin:0
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const r = v => Math.round(v);
-const q = x => '<b class="q">' + x + '</b>';
+const q = x => '<b class="q">' + String(x).replace(/ /g, '\u00a0') + '</b>';
 const store = {
   get(k, d){ try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch(e){ return d; } },
   set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
@@ -483,7 +483,7 @@ function renderTiles(d){
   const snowTxt = snow > .05 ? (fl != null ? 'Isotherme 0 °C : ' + q((Math.round(fl / 50) * 50) + ' m') : 'Neige prévue') : depth >= 1 ? 'Au sol : ' + q(r(depth) + ' cm') : 'Pas de neige';
   const arrow = `<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(${r(c.wind_direction_10m + 180)}deg)" aria-hidden="true"><line x1="12" y1="4" x2="12" y2="20"/><polyline points="6,14 12,20 18,14"/></svg>`;
   $('#tiles').innerHTML =
-    tile(rain24 == null ? 'Pluie' : 'Pluie 24 h', `${(rain24 == null ? c.precipitation : rain24).toFixed(1)}<small>mm</small>`, `Actuel ${q(c.precipitation.toFixed(1) + ' mm')} · max ${q(r(dly.precipitation_probability_max[0] || 0) + ' %')}`, 'cool', null) +
+    tile(rain24 == null ? 'Pluie' : 'Pluie 24 h', `${(rain24 == null ? c.precipitation : rain24).toFixed(1)}<small>mm</small>`, `Actuel ${q(c.precipitation.toFixed(1) + ' mm')} · max ${q(r(dly.precipitation_probability_max[0] || 0) + ' %')}`, 'cool', null, 'fit1') +
     tile('Pression', `${r(c.surface_pressure)}<small>hPa</small>${parrow}`, ptxt, '', null, 'fit1') +
     tile('Neige 24 h', snow == null ? '--' : `${snow.toFixed(1)}<small>cm</small>`, snow == null ? 'Indisponible' : snowTxt, snow > .05 ? 'cool' : '', null) +
     tile('Nuages', cc == null ? '--' : `${r(cc)}<small>%</small>`, sun == null ? '' : 'Soleil ' + q(dur(Math.round(sun / 60))) + ' aujourd’hui', '', cc == null ? null : cc) +
@@ -690,10 +690,9 @@ let nsVideo = null;
 function nsStart(){
   if (!nsVideo){
     nsVideo = document.createElement('video');
-    nsVideo.setAttribute('playsinline', ''); nsVideo.setAttribute('muted', ''); nsVideo.setAttribute('aria-hidden', 'true');
-    nsVideo.muted = true; nsVideo.loop = true; nsVideo.src = NS_SRC;
-    nsVideo.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:.02;pointer-events:none';
-    document.body.appendChild(nsVideo);
+    nsVideo.setAttribute('playsinline', ''); nsVideo.setAttribute('muted', ''); nsVideo.setAttribute('title', 'Écran allumé');
+    nsVideo.muted = true; nsVideo.src = NS_SRC;
+    nsVideo.addEventListener('timeupdate', () => { if (nsVideo.currentTime > .5) nsVideo.currentTime = Math.random() * .4; });
   }
   if (nsVideo.paused){ const p = nsVideo.play(); if (p && p.catch) p.catch(() => {}); }
 }
@@ -789,7 +788,7 @@ document.addEventListener('fullscreenchange', fsSync);
 document.addEventListener('webkitfullscreenchange', fsSync);
 window.addEventListener('online', refresh);
 window.addEventListener('pageshow', autoRefresh);
-document.addEventListener('pointerdown', () => { if (wantWake) wake(); }, {passive:true});
+['pointerdown', 'touchend', 'click'].forEach(ev => document.addEventListener(ev, () => { if (wantWake) wake(); }, {passive:true}));
 setInterval(() => { if (wantWake && !document.hidden) wake(); }, 30000);
 
 /* ---------- Radar de pluie ---------- */
@@ -840,6 +839,7 @@ if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitFonts);
 if (typeof ResizeObserver !== 'undefined'){
   new ResizeObserver(() => { const d = cache[key(cities[idx])]; if (d) renderHourly(d); }).observe($('#hourly'));
 }
+if (typeof ResizeObserver !== 'undefined') new ResizeObserver(() => { clearTimeout(fitT); fitT = setTimeout(fitFonts, 120); }).observe($('#tiles'));
 renderChips();
 $('#btnWake').setAttribute('aria-pressed', String(wantWake));
 tick(); setInterval(tick, 15000);
