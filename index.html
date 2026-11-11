@@ -81,7 +81,10 @@ button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:tra
 .hero-top{display:flex;align-items:center;gap:14px;color:var(--mood)}
 .cond{font-size:24px;font-weight:500;color:var(--fg)}
 .temp{font-size:clamp(88px,13vw,170px);font-weight:200;line-height:1;color:var(--mood);letter-spacing:-.03em}
-.temp span{font-size:.3em;font-weight:300;letter-spacing:0;margin-left:.08em;vertical-align:.95em}
+.temp{flex:1 1 auto;min-height:0;display:flex;align-items:center;justify-content:flex-start}
+.temp span{font-size:.3em;font-weight:300;letter-spacing:0;margin-left:.08em;align-self:flex-start;margin-top:.2em}
+.hero>*:not(.temp){flex:none}
+.hero{gap:8px}
 .feels{font-size:20px}
 .sunline{display:flex;gap:18px;flex-wrap:wrap;color:var(--muted)}
 .sunline b{color:var(--warm);font-weight:500}
@@ -195,7 +198,7 @@ body.radar-open .foot{position:fixed;left:0;right:0;bottom:0;z-index:30;margin:0
   .main{min-height:0;grid-template-columns:minmax(230px,1fr) 3fr;gap:12px}
   .sunline{font-size:14px;gap:2px 12px}
   .moon .mn{display:none}
-  .hero{padding:14px 18px;min-height:0;overflow:hidden}
+  .hero{padding:14px 18px;min-height:0;overflow:hidden;gap:6px}
   .temp{font-size:clamp(64px,12vh,150px)}
   .cond{font-size:clamp(18px,2.8vh,24px)}
   .hero-top svg{width:clamp(44px,7vh,76px);height:clamp(44px,7vh,76px)}
@@ -213,6 +216,8 @@ body.radar-open .foot{position:fixed;left:0;right:0;bottom:0;z-index:30;margin:0
   .day h3{font-size:16px}
   .mm{font-size:18px}
   .foot{margin-top:-2px}
+  .tile .pl{display:block}
+  .tile .psep{display:none}
 }
 @media (min-width:760px) and (min-height:560px) and (max-height:900px){
   .day .cd{display:none}
@@ -483,7 +488,7 @@ function renderTiles(d){
   const snowTxt = snow > .05 ? (fl != null ? 'Isotherme 0 °C : ' + q((Math.round(fl / 50) * 50) + ' m') : 'Neige prévue') : depth >= 1 ? 'Au sol : ' + q(r(depth) + ' cm') : 'Pas de neige';
   const arrow = `<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(${r(c.wind_direction_10m + 180)}deg)" aria-hidden="true"><line x1="12" y1="4" x2="12" y2="20"/><polyline points="6,14 12,20 18,14"/></svg>`;
   $('#tiles').innerHTML =
-    tile(rain24 == null ? 'Pluie' : 'Pluie 24 h', `${(rain24 == null ? c.precipitation : rain24).toFixed(1)}<small>mm</small>`, `Actuel ${q(c.precipitation.toFixed(1) + ' mm')} · max ${q(r(dly.precipitation_probability_max[0] || 0) + ' %')}`, 'cool', null, 'fit1') +
+    tile(rain24 == null ? 'Pluie' : 'Pluie 24 h', `${(rain24 == null ? c.precipitation : rain24).toFixed(1)}<small>mm</small>`, `<span class="pl">Actuel ${q(c.precipitation.toFixed(1) + ' mm')}</span><span class="psep"> · </span><span class="pl">max ${q(r(dly.precipitation_probability_max[0] || 0) + ' %')}</span>`, 'cool', null, 'fit1') +
     tile('Pression', `${r(c.surface_pressure)}<small>hPa</small>${parrow}`, ptxt, '', null, 'fit1') +
     tile('Neige 24 h', snow == null ? '--' : `${snow.toFixed(1)}<small>cm</small>`, snow == null ? 'Indisponible' : snowTxt, snow > .05 ? 'cool' : '', null) +
     tile('Nuages', cc == null ? '--' : `${r(cc)}<small>%</small>`, sun == null ? '' : 'Soleil ' + q(dur(Math.round(sun / 60))) + ' aujourd’hui', '', cc == null ? null : cc) +
@@ -691,20 +696,26 @@ function nsStart(){
   if (!nsVideo){
     nsVideo = document.createElement('video');
     nsVideo.setAttribute('playsinline', ''); nsVideo.setAttribute('muted', ''); nsVideo.setAttribute('title', 'Écran allumé');
-    nsVideo.muted = true; nsVideo.src = NS_SRC;
+    nsVideo.muted = true; nsVideo.loop = true; nsVideo.src = NS_SRC;
+    nsVideo.addEventListener('pause', () => { if (wantWake && !document.hidden) setTimeout(nsStart, 300); });
+    nsVideo.addEventListener('ended', () => { if (wantWake && !document.hidden){ nsVideo.currentTime = 0; nsStart(); } });
     nsVideo.addEventListener('timeupdate', () => { if (nsVideo.currentTime > .5) nsVideo.currentTime = Math.random() * .4; });
   }
   if (nsVideo.paused){ const p = nsVideo.play(); if (p && p.catch) p.catch(() => {}); }
 }
 function nsStop(){ if (nsVideo && !nsVideo.paused) nsVideo.pause(); }
+let wlBusy = false;
 async function wake(){
   if (!wantWake) return;
-  try {
-    if ('wakeLock' in navigator && !wl){
-      wl = await navigator.wakeLock.request('screen');
-      wl.addEventListener('release', () => { wl = null; });
-    }
-  } catch(e){ wl = null; }
+  if ('wakeLock' in navigator && !wl && !wlBusy && !document.hidden){
+    wlBusy = true;
+    try {
+      const l = await navigator.wakeLock.request('screen');
+      wl = l;
+      l.addEventListener('release', () => { if (wl === l) wl = null; if (wantWake && !document.hidden) setTimeout(wake, 200); });
+    } catch(e){ wl = null; }
+    wlBusy = false;
+  }
   if (isIOS || !wl) nsStart();
 }
 function setWake(on){
@@ -789,7 +800,7 @@ document.addEventListener('webkitfullscreenchange', fsSync);
 window.addEventListener('online', refresh);
 window.addEventListener('pageshow', autoRefresh);
 ['pointerdown', 'touchend', 'click'].forEach(ev => document.addEventListener(ev, () => { if (wantWake) wake(); }, {passive:true}));
-setInterval(() => { if (wantWake && !document.hidden) wake(); }, 30000);
+setInterval(() => { if (wantWake && !document.hidden) wake(); }, 10000);
 
 /* ---------- Radar de pluie ---------- */
 async function openRadar(){
