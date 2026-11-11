@@ -73,14 +73,14 @@ button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:tra
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px}
 .hero{display:flex;flex-direction:column;gap:6px;justify-content:space-between}
 .hero[data-mood="clear"]{--mood:var(--warm)}
-.hero[data-mood="cloud"]{--mood:var(--cloud)}
+.hero[data-mood="cloud"]{--mood:#8fb4d9}
 .hero[data-mood="rain"]{--mood:var(--cool)}
 .hero[data-mood="snow"]{--mood:var(--snow)}
 .hero[data-mood="storm"]{--mood:var(--orange)}
 .hero[data-mood="night"]{--mood:var(--cool)}
 .hero-top{display:flex;align-items:center;gap:14px;color:var(--mood)}
 .cond{font-size:24px;font-weight:500;color:var(--fg)}
-.temp{font-size:clamp(88px,13vw,170px);font-weight:200;line-height:1;color:var(--mood);letter-spacing:-.03em}
+.temp{font-size:clamp(88px,13vw,170px);font-weight:200;line-height:1;color:var(--cool);letter-spacing:-.03em}
 .temp{flex:1 1 auto;min-height:0;display:flex;align-items:center;justify-content:flex-start}
 .temp span{font-size:.3em;font-weight:300;letter-spacing:0;margin-left:.08em;align-self:flex-start;margin-top:.2em}
 .hero>*:not(.temp){flex:none}
