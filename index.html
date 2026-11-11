@@ -427,11 +427,6 @@ function moonSvg(p){
   const lit = `<path d="M12 3A9 9 0 0 1 12 21A${rx} 9 0 0 ${sw} 12 3z" fill="currentColor" stroke="none"${p > .5 ? ' transform="translate(24 0) scale(-1 1)"' : ''}/>`;
   return `<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".55"/>${lit}</svg>`;
 }
-function dayLen(sr, ss){
-  const a = hm(sr).split(':').map(Number), b = hm(ss).split(':').map(Number);
-  if (a.length < 2 || b.length < 2 || isNaN(a[0]) || isNaN(b[0])) return '';
-  return dur(Math.max(0, (b[0] * 60 + b[1]) - (a[0] * 60 + a[1])));
-}
 function hourStart(d){
   const h = d.w.hourly, s = h.time.findIndex(t => t.startsWith(d.w.current.time.slice(0, 13)));
   return s < 0 ? 0 : s;
@@ -598,7 +593,7 @@ function renderAlerts(d){
   const lvl = top[0].l;
   el.className = 'alert l' + lvl;
   el.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 21h20z"/><line x1="12" y1="10" x2="12" y2="15"/><circle cx="12" cy="18" r=".6" fill="currentColor"/></svg>' +
-    top.map(a => '<span>' + esc(a.t) + '</span>').join('');
+    '<b>Prévisions :</b>' + top.map(a => '<span>' + esc(a.t) + '</span>').join('');
   el.hidden = false;
 }
 
@@ -689,18 +684,34 @@ function tick(){
   $('#time').textContent = n.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
   $('#date').textContent = n.toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'});
 }
+const NS_SRC = 'data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAANMbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAAAAAD6AAAB9AAAQAAAQAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAnZ0cmFrAAAAXHRraGQAAAADAAAAAAAAAAAAAAABAAAAAAAAB9AAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAEAAAABAAAAAAAAkZWR0cwAAABxlbHN0AAAAAAAAAAEAAAfQAAAAAAABAAAAAAHubWRpYQAAACBtZGhkAAAAAAAAAAAAAAAAAAAoAAAAUABVxAAAAAAALWhkbHIAAAAAAAAAAHZpZGUAAAAAAAAAAAAAAABWaWRlb0hhbmRsZXIAAAABmW1pbmYAAAAUdm1oZAAAAAEAAAAAAAAAAAAAACRkaW5mAAAAHGRyZWYAAAAAAAAAAQAAAAx1cmwgAAAAAQAAAVlzdGJsAAAAuXN0c2QAAAAAAAAAAQAAAKlhdmMxAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAEAAQABIAAAASAAAAAAAAAABFUxhdmM2MC4zMS4xMDIgbGlieDI2NAAAAAAAAAAAAAAAGP//AAAAL2F2Y0MBQsAe/+EAF2dCwB7ZBCbARAAAAwAEAAADACg8WLkgAQAFaMuDyyAAAAAQcGFzcAAAAAEAAAABAAAAFGJ0cnQAAAAAAAALqAAAC6gAAAAYc3R0cwAAAAAAAAABAAAACgAACAAAAAAUc3RzcwAAAAAAAAABAAAAAQAAABxzdHNjAAAAAAAAAAEAAAABAAAACgAAAAEAAAA8c3RzegAAAAAAAAAAAAAACgAAAo8AAAAKAAAACwAAAAoAAAAKAAAACgAAAAoAAAAKAAAACgAAAAoAAAAUc3RjbwAAAAAAAAABAAADfAAAAGJ1ZHRhAAAAWm1ldGEAAAAAAAAAIWhkbHIAAAAAAAAAAG1kaXJhcHBsAAAAAAAAAAAAAAAALWlsc3QAAAAlqXRvbwAAAB1kYXRhAAAAAQAAAABMYXZmNjAuMTYuMTAwAAAACGZyZWUAAALybWRhdAAAAnAGBf//bNxF6b3m2Ui3lizYINkj7u94MjY0IC0gY29yZSAxNjQgcjMxMDggMzFlMTlmOSAtIEguMjY0L01QRUctNCBBVkMgY29kZWMgLSBDb3B5bGVmdCAyMDAzLTIwMjMgLSBodHRwOi8vd3d3LnZpZGVvbGFuLm9yZy94MjY0Lmh0bWwgLSBvcHRpb25zOiBjYWJhYz0wIHJlZj0zIGRlYmxvY2s9MTowOjAgYW5hbHlzZT0weDE6MHgxMTEgbWU9aGV4IHN1Ym1lPTcgcHN5PTEgcHN5X3JkPTEuMDA6MC4wMCBtaXhlZF9yZWY9MSBtZV9yYW5nZT0xNiBjaHJvbWFfbWU9MSB0cmVsbGlzPTEgOHg4ZGN0PTAgY3FtPTAgZGVhZHpvbmU9MjEsMTEgZmFzdF9wc2tpcD0xIGNocm9tYV9xcF9vZmZzZXQ9LTIgdGhyZWFkcz0xIGxvb2thaGVhZF90aHJlYWRzPTEgc2xpY2VkX3RocmVhZHM9MCBucj0wIGRlY2ltYXRlPTEgaW50ZXJsYWNlZD0wIGJsdXJheV9jb21wYXQ9MCBjb25zdHJhaW5lZF9pbnRyYT0wIGJmcmFtZXM9MCB3ZWlnaHRwPTAga2V5aW50PTI1MCBrZXlpbnRfbWluPTUgc2NlbmVjdXQ9NDAgaW50cmFfcmVmcmVzaD0wIHJjX2xvb2thaGVhZD00MCByYz1jcmYgbWJ0cmVlPTEgY3JmPTIzLjAgcWNvbXA9MC42MCBxcG1pbj0wIHFwbWF4PTY5IHFwc3RlcD00IGlwX3JhdGlvPTEuNDAgYXE9MToxLjAwAIAAAAAXZYiEBHyYoAA2IycnJ1111111111114AAAAAGQZo4CPhGAAAAB0GaVAI+EYAAAAAGQZpgEfCMAAAABkGagBHwjAAAAAZBmqAR8IwAAAAGQZrAEfCMAAAABkGa4BHwjAAAAAZBmwAQ8IwAAAAGQZsgP8Iw';
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+let nsVideo = null;
+function nsStart(){
+  if (!nsVideo){
+    nsVideo = document.createElement('video');
+    nsVideo.setAttribute('playsinline', ''); nsVideo.setAttribute('muted', ''); nsVideo.setAttribute('aria-hidden', 'true');
+    nsVideo.muted = true; nsVideo.loop = true; nsVideo.src = NS_SRC;
+    nsVideo.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:.02;pointer-events:none';
+    document.body.appendChild(nsVideo);
+  }
+  if (nsVideo.paused){ const p = nsVideo.play(); if (p && p.catch) p.catch(() => {}); }
+}
+function nsStop(){ if (nsVideo && !nsVideo.paused) nsVideo.pause(); }
 async function wake(){
+  if (!wantWake) return;
   try {
-    if (wantWake && 'wakeLock' in navigator && !wl){
+    if ('wakeLock' in navigator && !wl){
       wl = await navigator.wakeLock.request('screen');
       wl.addEventListener('release', () => { wl = null; });
     }
   } catch(e){ wl = null; }
+  if (isIOS || !wl) nsStart();
 }
 function setWake(on){
   wantWake = on; store.set('wx.wake', on);
   $('#btnWake').setAttribute('aria-pressed', String(on));
-  if (on) wake(); else if (wl){ wl.release().catch(() => {}); wl = null; }
+  if (on) wake(); else { nsStop(); if (wl){ wl.release().catch(() => {}); wl = null; } }
 }
 
 $('#chips').addEventListener('click', e => {
@@ -773,40 +784,15 @@ if (!fsReq) $('#btnFull').hidden = true;
 $('#btnFull').addEventListener('click', () => {
   try { (fsOn() ? fsExit : fsReq).call(fsOn() ? document : fsEl); } catch(e){}
 });
-const fsSync = () => { $('#btnFull').setAttribute('aria-pressed', String(fsOn())); document.body.classList.toggle('fs', fsOn()); };
+const fsSync = () => { $('#btnFull').setAttribute('aria-pressed', String(fsOn())); document.body.classList.toggle('fs', fsOn()); if (wantWake) wake(); };
 document.addEventListener('fullscreenchange', fsSync);
 document.addEventListener('webkitfullscreenchange', fsSync);
 window.addEventListener('online', refresh);
 window.addEventListener('pageshow', autoRefresh);
-document.addEventListener('pointerdown', () => { if (wantWake && !wl) wake(); }, {passive:true});
+document.addEventListener('pointerdown', () => { if (wantWake) wake(); }, {passive:true});
+setInterval(() => { if (wantWake && !document.hidden) wake(); }, 30000);
 
 /* ---------- Radar de pluie ---------- */
-let rmap = null, rframes = [], rlayers = [], rnPast = 0, rpos = 0, rtimer = 0, rplay = true, rdot = null;
-function loadLeaflet(){
-  if (window.L) return Promise.resolve();
-  return new Promise((res, rej) => {
-    const l = document.createElement('link');
-    l.rel = 'stylesheet'; l.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-    document.head.appendChild(l);
-    const s = document.createElement('script');
-    s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-    s.onload = res; s.onerror = rej;
-    document.head.appendChild(s);
-  });
-}
-function radarShow(i){
-  rpos = i;
-  rlayers.forEach((ly, k) => ly.setOpacity(k === i ? 0.75 : 0));
-  const f = rframes[i];
-  if (!f) return;
-  $('#radarTime').textContent = new Date(f.time * 1000).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}) + (i >= rnPast ? ' · prévision' : '');
-}
-function radarLoop(){
-  clearTimeout(rtimer);
-  if (!rplay || $('#radar').hidden || !rframes.length) return;
-  const nxt = (rpos + 1) % rframes.length;
-  rtimer = setTimeout(() => { radarShow(nxt); radarLoop(); }, nxt === 0 ? 1600 : 650);
-}
 async function openRadar(){
   const c = cities[idx];
   $('#radar').hidden = false;
