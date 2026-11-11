@@ -9,6 +9,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Météo">
 <meta name="theme-color" content="#0b1016">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
 <style>
 /* Concept : tableau de bord mural en deux niveaux, l'état présent à gauche, le détail à droite, puis 24 h et 5 jours */
 :root{
@@ -139,6 +142,9 @@ body.night{
 .alert.l2{border-color:var(--bad);color:var(--bad)}
 .alert[hidden]{display:none}
 .alert svg{flex:none}
+
+.moon{display:inline-flex;align-items:center;gap:6px}
+.moon svg{color:var(--snow)}
 
 /* Pluie à venir */
 .rainsoon{color:var(--cool);font-size:clamp(14px,2.2vh,18px);min-height:1.2em}
@@ -337,9 +343,9 @@ async function getJson(url){
 async function fetchWx(c){
   const f = 'https://api.open-meteo.com/v1/forecast?latitude=' + c.lat + '&longitude=' + c.lon +
     '&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m' +
-    '&hourly=temperature_2m,precipitation_probability' +
+    '&hourly=temperature_2m,precipitation_probability,precipitation,surface_pressure&past_hours=3' +
     '&minutely_15=precipitation' +
-    '&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_probability_max,wind_gusts_10m_max' +
+    '&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_probability_max,precipitation_sum,wind_gusts_10m_max' +
     '&timezone=auto&forecast_days=5';
   const a = 'https://air-quality-api.open-meteo.com/v1/air-quality?latitude=' + c.lat + '&longitude=' + c.lon +
     '&current=european_aqi&timezone=auto';
@@ -347,9 +353,31 @@ async function fetchWx(c){
   return {w, aqi: air && air.current ? air.current.european_aqi : null, at: Date.now()};
 }
 
+/* ---------- Lune et durée du jour ---------- */
+const MOONS = ['Nouvelle lune','Premier croissant','Premier quartier','Gibbeuse croissante','Pleine lune','Gibbeuse décroissante','Dernier quartier','Dernier croissant'];
+function moonPhase(date){
+  const syn = 29.530588853, ref = Date.UTC(2000, 0, 6, 18, 14);
+  const p = (((date.getTime() - ref) / 86400000) % syn + syn) % syn / syn;
+  return {p, name: MOONS[Math.floor(p * 8 + .5) % 8]};
+}
+function moonSvg(p){
+  const k = Math.cos(2 * Math.PI * p), rx = (Math.abs(k) * 9).toFixed(2), sw = k > 0 ? 0 : 1;
+  const lit = `<path d="M12 3A9 9 0 0 1 12 21A${rx} 9 0 0 ${sw} 12 3z" fill="currentColor" stroke="none"${p > .5 ? ' transform="translate(24 0) scale(-1 1)"' : ''}/>`;
+  return `<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".55"/>${lit}</svg>`;
+}
+function dayLen(sr, ss){
+  const a = hm(sr).split(':').map(Number), b = hm(ss).split(':').map(Number);
+  if (a.length < 2 || b.length < 2 || isNaN(a[0]) || isNaN(b[0])) return '';
+  return dur(Math.max(0, (b[0] * 60 + b[1]) - (a[0] * 60 + a[1])));
+}
+function hourStart(d){
+  const h = d.w.hourly, s = h.time.findIndex(t => t.startsWith(d.w.current.time.slice(0, 13)));
+  return s < 0 ? 0 : s;
+}
+
 /* ---------- Rendu ---------- */
 function renderHero(d){
-  const c = d.w.current, dly = d.w.daily, m = WMO(c.weather_code), night = !c.is_day;
+  const c = d.w.current, dly = d.w.daily, m = WMO(c.weather_code), night = !c.is_day, mp = moonPhase(new Date());
   const el = $('#hero');
   el.dataset.mood = (night && m.m === 'clear') ? 'night' : m.m;
   el.innerHTML =
@@ -357,7 +385,9 @@ function renderHero(d){
     `<div class="temp">${r(c.temperature_2m)}<span>°C</span></div>` +
     `<div class="feels">Ressenti ${r(c.apparent_temperature)}°C</div>` +
     `<div class="rainsoon">${esc(rainSoon(d))}</div>` +
-    `<div class="sunline"><span>Lever <b>${hm(dly.sunrise[0])}</b></span><span>Coucher <b>${hm(dly.sunset[0])}</b></span></div>`;
+    `<div class="sunline"><span>Lever <b>${hm(dly.sunrise[0])}</b></span><span>Coucher <b>${hm(dly.sunset[0])}</b></span>` +
+    `<span>Jour <b>${dayLen(dly.sunrise[0], dly.sunset[0])}</b></span>` +
+    `<span class="moon">${moonSvg(mp.p)}${mp.name}</span></div>`;
 }
 
 function tile(label, value, sub, cls, pct){
@@ -371,12 +401,23 @@ function renderTiles(d){
   const uv = dly.uv_index_max[0];
   const uvI = uv < 3 ? ['Faible','good'] : uv < 6 ? ['Modéré','warn'] : uv < 8 ? ['Élevé','orange'] : ['Très élevé','bad'];
   const ai = aqiInfo(d.aqi);
+  const hh = d.w.hourly, s0 = hourStart(d);
+  let rain24 = null;
+  if (hh.precipitation){ rain24 = 0; for (let i = s0; i < Math.min(s0 + 24, hh.precipitation.length); i++) rain24 += hh.precipitation[i] || 0; }
+  let ptxt = 'Pression au sol', parrow = '';
+  if (hh.surface_pressure && s0 >= 3 && hh.surface_pressure[s0] != null && hh.surface_pressure[s0 - 3] != null){
+    const dp = hh.surface_pressure[s0] - hh.surface_pressure[s0 - 3];
+    const lab = dp >= 1 ? 'En hausse' : dp <= -1 ? 'En baisse' : 'Stable';
+    const rot = dp >= 1 ? 180 : dp <= -1 ? 0 : -90;
+    ptxt = `${lab} · ${dp > 0 ? '+' : dp < 0 ? '−' : ''}${Math.abs(dp).toFixed(1)} hPa / 3 h`;
+    parrow = `<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(${rot}deg)" aria-hidden="true"><line x1="12" y1="4" x2="12" y2="20"/><polyline points="6,14 12,20 18,14"/></svg>`;
+  }
   const arrow = `<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(${r(c.wind_direction_10m + 180)}deg)" aria-hidden="true"><line x1="12" y1="4" x2="12" y2="20"/><polyline points="6,14 12,20 18,14"/></svg>`;
   $('#tiles').innerHTML =
     tile('Humidité', `${r(c.relative_humidity_2m)}<small>%</small>`, '', 'cool', c.relative_humidity_2m) +
     tile('Vent', `${r(c.wind_speed_10m)}<small>km/h</small>${arrow}`, `${compass(c.wind_direction_10m)} · rafales ${r(c.wind_gusts_10m)} km/h`, '', null) +
-    tile('Pression', `${r(c.surface_pressure)}<small>hPa</small>`, 'Pression au sol', '', null) +
-    tile('Pluie', `${c.precipitation.toFixed(1)}<small>mm</small>`, `Probabilité max ${r(dly.precipitation_probability_max[0] || 0)} %`, 'cool', null) +
+    tile('Pression', `${r(c.surface_pressure)}<small>hPa</small>${parrow}`, ptxt, '', null) +
+    tile(rain24 == null ? 'Pluie' : 'Pluie 24 h', `${(rain24 == null ? c.precipitation : rain24).toFixed(1)}<small>mm</small>`, `Actuel ${c.precipitation.toFixed(1)} mm · max ${r(dly.precipitation_probability_max[0] || 0)} %`, 'cool', null) +
     tile('Indice UV max', `${uv.toFixed(1)}`, uvI[0], uvI[1], uv / 11 * 100) +
     tile('Qualité de l\'air', d.aqi == null ? '--' : `${r(d.aqi)}`, ai[0] === '--' ? 'Indisponible' : ai[0], ai[1], d.aqi == null ? null : d.aqi);
 }
@@ -425,7 +466,7 @@ function renderDays(d){
     return `<article class="day ${m.m}"><div class="top"><h3>${esc(name)}</h3><div class="ico">${svgIcon(m.i, 44)}</div></div><div class="c cd">${esc(m.t)}</div>` +
       `<div class="range" aria-hidden="true"><i style="left:${left.toFixed(1)}%;width:${width.toFixed(1)}%"></i></div>` +
       `<div class="mm"><span>${r(hi)}°</span><span>${r(lo)}°</span></div>` +
-      `<div class="c">Pluie ${r(dl.precipitation_probability_max[i] || 0)} %</div></article>`;
+      `<div class="c">Pluie ${r(dl.precipitation_probability_max[i] || 0)} %${dl.precipitation_sum ? ' · ' + (dl.precipitation_sum[i] || 0).toFixed(1) + ' mm' : ''}</div></article>`;
   }).join('');
 }
 
@@ -682,6 +723,25 @@ $('#btnRadar').addEventListener('click', () => {
     openRadar();
   } else closeRadar();
 });
+
+/* ---------- Balayage entre villes ---------- */
+let sw0 = null;
+document.addEventListener('touchstart', e => {
+  if (e.touches.length !== 1 || !$('#radar').hidden || !$('#search').hidden || e.target.closest('input,iframe')){ sw0 = null; return; }
+  sw0 = {x:e.touches[0].clientX, y:e.touches[0].clientY, t:Date.now()};
+}, {passive:true});
+document.addEventListener('touchend', e => {
+  if (!sw0) return;
+  const t = e.changedTouches[0], dx = t.clientX - sw0.x, dy = t.clientY - sw0.y, dt = Date.now() - sw0.t;
+  sw0 = null;
+  if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 2 || dt > 700 || cities.length < 2) return;
+  select((idx + (dx < 0 ? 1 : -1) + cities.length) % cities.length);
+}, {passive:true});
+
+/* ---------- PWA ---------- */
+if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
+  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+}
 
 /* ---------- Démarrage ---------- */
 if (typeof ResizeObserver !== 'undefined'){
