@@ -471,17 +471,17 @@ function renderTiles(d){
   const snowTxt = snow > .05 ? (fl != null ? 'Isotherme 0 °C : ' + (Math.round(fl / 50) * 50) + ' m' : 'Neige prévue') : depth >= 1 ? 'Au sol : ' + r(depth) + ' cm' : 'Pas de neige';
   const arrow = `<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(${r(c.wind_direction_10m + 180)}deg)" aria-hidden="true"><line x1="12" y1="4" x2="12" y2="20"/><polyline points="6,14 12,20 18,14"/></svg>`;
   $('#tiles').innerHTML =
-    tile('Humidité', `${r(c.relative_humidity_2m)}<small>%</small>`, '', 'cool', c.relative_humidity_2m) +
-    tile('Vent', `${r(c.wind_speed_10m)}<small>km/h</small>${arrow}`, `${compass(c.wind_direction_10m)} · rafales ${r(c.wind_gusts_10m)} km/h`, '', null) +
-    tile('Pression', `${r(c.surface_pressure)}<small>hPa</small>${parrow}`, ptxt, '', null) +
     tile(rain24 == null ? 'Pluie' : 'Pluie 24 h', `${(rain24 == null ? c.precipitation : rain24).toFixed(1)}<small>mm</small>`, `Actuel ${c.precipitation.toFixed(1)} mm · max ${r(dly.precipitation_probability_max[0] || 0)} %`, 'cool', null) +
-    tile('Indice UV max', `${uv.toFixed(1)}`, uvI[0], uvI[1], uv / 11 * 100) +
-    tile('Qualité de l\'air', d.aqi == null ? '--' : `${r(d.aqi)}`, ai[0] === '--' ? 'Indisponible' : ai[0], ai[1], d.aqi == null ? null : d.aqi) +
-    tile('Pollens', pi ? (pi.lvl ? `${pi.v < 10 ? pi.v.toFixed(1) : r(pi.v)}<small>gr/m³</small>` : 'Aucun') : '--',
-      pi ? (pi.lvl ? `${pi.name} · ${POLLV[pi.lvl]}` : 'Hors saison') : 'Indisponible', pi ? POLLC[pi.lvl] : '', pi && pi.lvl ? pi.lvl / 4 * 100 : null) +
+    tile('Pression', `${r(c.surface_pressure)}<small>hPa</small>${parrow}`, ptxt, '', null) +
+    tile('Neige 24 h', snow == null ? '--' : `${snow.toFixed(1)}<small>cm</small>`, snow == null ? 'Indisponible' : snowTxt, snow > .05 ? 'cool' : '', null) +
     tile('Nuages', cc == null ? '--' : `${r(cc)}<small>%</small>`, sun == null ? '' : 'Soleil ' + dur(Math.round(sun / 60)) + ' aujourd’hui', '', cc == null ? null : cc) +
+    tile('Qualité de l\'air', d.aqi == null ? '--' : `${r(d.aqi)}`, ai[0] === '--' ? 'Indisponible' : ai[0], ai[1], d.aqi == null ? null : d.aqi) +
+    tile('Vent', `${r(c.wind_speed_10m)}<small>km/h</small>${arrow}`, `${compass(c.wind_direction_10m)} · rafales ${r(c.wind_gusts_10m)} km/h`, '', null) +
+    tile('Humidité', `${r(c.relative_humidity_2m)}<small>%</small>`, '', 'cool', c.relative_humidity_2m) +
     tile('Gel 24 h', tmin == null ? '--' : `${String(r(tmin)).replace('-', '−')}<small>°C min</small>`, frostTxt, frostCls, null) +
-    tile('Neige 24 h', snow == null ? '--' : `${snow.toFixed(1)}<small>cm</small>`, snow == null ? 'Indisponible' : snowTxt, snow > .05 ? 'cool' : '', null);
+    tile('Indice UV max', `${uv.toFixed(1)}`, uvI[0], uvI[1], uv / 11 * 100) +
+    tile('Pollens', pi ? (pi.lvl ? `${pi.v < 10 ? pi.v.toFixed(1) : r(pi.v)}<small>gr/m³</small>` : 'Aucun') : '--',
+      pi ? (pi.lvl ? `${pi.name} · ${POLLV[pi.lvl]}` : 'Hors saison') : 'Indisponible', pi ? POLLC[pi.lvl] : '', pi && pi.lvl ? pi.lvl / 4 * 100 : null);
 }
 
 function renderHourly(d){
