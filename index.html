@@ -170,7 +170,9 @@ body.night{
 .moon svg{color:var(--snow)}
 
 /* Pluie à venir */
-.rainsoon{color:var(--fg);font-size:clamp(14px,2.2vh,18px);min-height:1.2em}
+.main>*,.app>*{min-width:0}
+html,body{max-width:100%;overflow-x:hidden}
+.rainsoon{max-width:100%;color:var(--fg);font-size:clamp(14px,2.2vh,18px);min-height:1.2em;white-space:nowrap;overflow:hidden}
 
 /* Radar */
 .radar{position:fixed;inset:0;z-index:20;background:var(--bg);display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:10px;
@@ -255,7 +257,7 @@ body.radar-open .foot{position:fixed;left:0;right:0;bottom:0;z-index:30;margin:0
   </section>
 
   <section class="card hourly">
-    <div class="sec-t"><span>Prochaines 24 h</span><span>Courbe : température · barres : probabilité de pluie · bas : vent (km/h)</span></div>
+    <div class="sec-t"><span>Prochaines 24 h</span><span>Courbe : température · barres : probabilité de pluie · bas : vent (km/h, direction)</span></div>
     <div id="hourly"></div>
   </section>
 
@@ -529,8 +531,8 @@ function renderHourly(d){
       labels += `<text class="hr-t" x="${x.toFixed(1)}" y="${H - 10}">${i === 0 ? 'Maint.' : h.time[s + i].slice(11, 13) + ' h'}</text>`;
       if (WS && WD && WS[i] != null){
         const gu = WG && WG[i] != null && WG[i] >= 60 ? ' gu' : '';
-        labels += `<g class="wd${gu}" transform="translate(${(x - 13).toFixed(1)} ${H - 34})"><g transform="rotate(${r((WD[i] || 0) + 180)})"><path d="M0-6V6M-4 2L0 6L4 2"/></g></g>`;
-        labels += `<text class="wi-t${gu}" x="${(x - 5).toFixed(1)}" y="${H - 29}">${r(WS[i])}</text>`;
+        labels += `<g class="wd${gu}" transform="translate(${(x - 24).toFixed(1)} ${H - 34})"><g transform="rotate(${r((WD[i] || 0) + 180)})"><path d="M0-6V6M-4 2L0 6L4 2"/></g></g>`;
+        labels += `<text class="wi-t${gu}" x="${(x - 15).toFixed(1)}" y="${H - 29}" style="text-anchor:start">${r(WS[i])} ${compass(WD[i] || 0)}</text>`;
       }
     }
   }
@@ -618,6 +620,12 @@ function fitFonts(){
   root.setProperty('--fs', fs + 'px');
   while (fs > 14 && els.some(e => e.scrollWidth > e.clientWidth + 1)){ fs -= .5; root.setProperty('--fs', fs + 'px'); }
   document.body.classList.remove('measure');
+  const rs = document.querySelector('.rainsoon');
+  if (rs){
+    rs.style.fontSize = '';
+    let f = parseFloat(getComputedStyle(rs).fontSize);
+    while (f > 9 && rs.scrollWidth > rs.clientWidth + 1){ f -= .5; rs.style.fontSize = f + 'px'; }
+  }
   document.querySelectorAll('#tiles .fit1').forEach(t => {
     const a = [t.querySelector('.tv'), t.querySelector('.ts')].filter(Boolean);
     a.forEach(e => { e.style.fontSize = ''; });
@@ -689,17 +697,21 @@ function tick(){
   $('#time').textContent = n.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
   $('#date').textContent = n.toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'});
 }
-const NS_SRC = 'data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAANMbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAAAAAD6AAAB9AAAQAAAQAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAnZ0cmFrAAAAXHRraGQAAAADAAAAAAAAAAAAAAABAAAAAAAAB9AAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAEAAAABAAAAAAAAkZWR0cwAAABxlbHN0AAAAAAAAAAEAAAfQAAAAAAABAAAAAAHubWRpYQAAACBtZGhkAAAAAAAAAAAAAAAAAAAoAAAAUABVxAAAAAAALWhkbHIAAAAAAAAAAHZpZGUAAAAAAAAAAAAAAABWaWRlb0hhbmRsZXIAAAABmW1pbmYAAAAUdm1oZAAAAAEAAAAAAAAAAAAAACRkaW5mAAAAHGRyZWYAAAAAAAAAAQAAAAx1cmwgAAAAAQAAAVlzdGJsAAAAuXN0c2QAAAAAAAAAAQAAAKlhdmMxAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAEAAQABIAAAASAAAAAAAAAABFUxhdmM2MC4zMS4xMDIgbGlieDI2NAAAAAAAAAAAAAAAGP//AAAAL2F2Y0MBQsAe/+EAF2dCwB7ZBCbARAAAAwAEAAADACg8WLkgAQAFaMuDyyAAAAAQcGFzcAAAAAEAAAABAAAAFGJ0cnQAAAAAAAALqAAAC6gAAAAYc3R0cwAAAAAAAAABAAAACgAACAAAAAAUc3RzcwAAAAAAAAABAAAAAQAAABxzdHNjAAAAAAAAAAEAAAABAAAACgAAAAEAAAA8c3RzegAAAAAAAAAAAAAACgAAAo8AAAAKAAAACwAAAAoAAAAKAAAACgAAAAoAAAAKAAAACgAAAAoAAAAUc3RjbwAAAAAAAAABAAADfAAAAGJ1ZHRhAAAAWm1ldGEAAAAAAAAAIWhkbHIAAAAAAAAAAG1kaXJhcHBsAAAAAAAAAAAAAAAALWlsc3QAAAAlqXRvbwAAAB1kYXRhAAAAAQAAAABMYXZmNjAuMTYuMTAwAAAACGZyZWUAAALybWRhdAAAAnAGBf//bNxF6b3m2Ui3lizYINkj7u94MjY0IC0gY29yZSAxNjQgcjMxMDggMzFlMTlmOSAtIEguMjY0L01QRUctNCBBVkMgY29kZWMgLSBDb3B5bGVmdCAyMDAzLTIwMjMgLSBodHRwOi8vd3d3LnZpZGVvbGFuLm9yZy94MjY0Lmh0bWwgLSBvcHRpb25zOiBjYWJhYz0wIHJlZj0zIGRlYmxvY2s9MTowOjAgYW5hbHlzZT0weDE6MHgxMTEgbWU9aGV4IHN1Ym1lPTcgcHN5PTEgcHN5X3JkPTEuMDA6MC4wMCBtaXhlZF9yZWY9MSBtZV9yYW5nZT0xNiBjaHJvbWFfbWU9MSB0cmVsbGlzPTEgOHg4ZGN0PTAgY3FtPTAgZGVhZHpvbmU9MjEsMTEgZmFzdF9wc2tpcD0xIGNocm9tYV9xcF9vZmZzZXQ9LTIgdGhyZWFkcz0xIGxvb2thaGVhZF90aHJlYWRzPTEgc2xpY2VkX3RocmVhZHM9MCBucj0wIGRlY2ltYXRlPTEgaW50ZXJsYWNlZD0wIGJsdXJheV9jb21wYXQ9MCBjb25zdHJhaW5lZF9pbnRyYT0wIGJmcmFtZXM9MCB3ZWlnaHRwPTAga2V5aW50PTI1MCBrZXlpbnRfbWluPTUgc2NlbmVjdXQ9NDAgaW50cmFfcmVmcmVzaD0wIHJjX2xvb2thaGVhZD00MCByYz1jcmYgbWJ0cmVlPTEgY3JmPTIzLjAgcWNvbXA9MC42MCBxcG1pbj0wIHFwbWF4PTY5IHFwc3RlcD00IGlwX3JhdGlvPTEuNDAgYXE9MToxLjAwAIAAAAAXZYiEBHyYoAA2IycnJ1111111111114AAAAAGQZo4CPhGAAAAB0GaVAI+EYAAAAAGQZpgEfCMAAAABkGagBHwjAAAAAZBmqAR8IwAAAAGQZrAEfCMAAAABkGa4BHwjAAAAAZBmwAQ8IwAAAAGQZsgP8Iw';
+const NS_SRC = 'data:video/mp4;base64,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';
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 let nsVideo = null;
 function nsStart(){
   if (!nsVideo){
     nsVideo = document.createElement('video');
-    nsVideo.setAttribute('playsinline', ''); nsVideo.setAttribute('muted', ''); nsVideo.setAttribute('title', 'Écran allumé');
-    nsVideo.muted = true; nsVideo.loop = true; nsVideo.src = NS_SRC;
+    nsVideo.setAttribute('playsinline', ''); nsVideo.setAttribute('webkit-playsinline', '');
+    nsVideo.setAttribute('muted', ''); nsVideo.setAttribute('loop', ''); nsVideo.setAttribute('title', 'Écran allumé');
+    nsVideo.setAttribute('aria-hidden', 'true'); nsVideo.tabIndex = -1;
+    nsVideo.muted = true; nsVideo.defaultMuted = true; nsVideo.loop = true; nsVideo.playsInline = true;
+    nsVideo.style.cssText = 'position:fixed;left:0;bottom:0;width:2px;height:2px;opacity:.02;pointer-events:none;z-index:-1';
+    nsVideo.src = NS_SRC;
+    document.body.appendChild(nsVideo);
     nsVideo.addEventListener('pause', () => { if (wantWake && !document.hidden) setTimeout(nsStart, 300); });
     nsVideo.addEventListener('ended', () => { if (wantWake && !document.hidden){ nsVideo.currentTime = 0; nsStart(); } });
-    nsVideo.addEventListener('timeupdate', () => { if (nsVideo.currentTime > .5) nsVideo.currentTime = Math.random() * .4; });
   }
   if (nsVideo.paused){ const p = nsVideo.play(); if (p && p.catch) p.catch(() => {}); }
 }
