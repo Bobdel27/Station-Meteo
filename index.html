@@ -101,6 +101,10 @@ button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:tra
 .tile .ts{color:var(--fg)}
 .tile .tl,.tile .ts{font-size:var(--fs,15px)}
 .q{color:var(--warm);font-weight:inherit}
+.tile.fit1 .tv,.tile.fit1 .ts{white-space:nowrap}
+.tile.fit1 .tv{flex-wrap:nowrap}
+.tile.fit1 .tv small{font-size:.5em}
+.tile.fit1 .tv svg{width:.85em;height:.85em}
 #status:not(.err){color:var(--fg)}
 body.measure #tiles .tl,body.measure #tiles .ts,body.measure .day .c{white-space:nowrap}
 .meter{height:6px;border-radius:3px;background:var(--surface-2);margin-top:auto;overflow:hidden}
@@ -446,8 +450,8 @@ function renderHero(d){
     `<span class="moon">${moonSvg(mp.p)}<span class="mn">${mp.name} · </span>${mp.next.full ? 'Pleine lune' : 'Nouvelle lune'}<b>${new Date(mp.next.t).toLocaleDateString('fr-FR', {day:'numeric', month:'short'})}</b></span></div>`;
 }
 
-function tile(label, value, sub, cls, pct){
-  return `<div class="tile"><div class="tl">${label}</div><div class="tv ${cls || ''}">${value}</div>` +
+function tile(label, value, sub, cls, pct, extra){
+  return `<div class="tile${extra ? ' ' + extra : ''}"><div class="tl">${label}</div><div class="tv ${cls || ''}">${value}</div>` +
     `<div class="ts">${sub || '&nbsp;'}</div>` +
     (pct != null ? `<div class="meter ${cls || ''}"><i style="width:${Math.max(2, Math.min(100, pct))}%"></i></div>` : '') + `</div>`;
 }
@@ -484,11 +488,11 @@ function renderTiles(d){
   const arrow = `<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(${r(c.wind_direction_10m + 180)}deg)" aria-hidden="true"><line x1="12" y1="4" x2="12" y2="20"/><polyline points="6,14 12,20 18,14"/></svg>`;
   $('#tiles').innerHTML =
     tile(rain24 == null ? 'Pluie' : 'Pluie 24 h', `${(rain24 == null ? c.precipitation : rain24).toFixed(1)}<small>mm</small>`, `Actuel ${q(c.precipitation.toFixed(1) + ' mm')} · max ${q(r(dly.precipitation_probability_max[0] || 0) + ' %')}`, 'cool', null) +
-    tile('Pression', `${r(c.surface_pressure)}<small>hPa</small>${parrow}`, ptxt, '', null) +
+    tile('Pression', `${r(c.surface_pressure)}<small>hPa</small>${parrow}`, ptxt, '', null, 'fit1') +
     tile('Neige 24 h', snow == null ? '--' : `${snow.toFixed(1)}<small>cm</small>`, snow == null ? 'Indisponible' : snowTxt, snow > .05 ? 'cool' : '', null) +
     tile('Nuages', cc == null ? '--' : `${r(cc)}<small>%</small>`, sun == null ? '' : 'Soleil ' + q(dur(Math.round(sun / 60))) + ' aujourd’hui', '', cc == null ? null : cc) +
     tile('Qualité de l\'air', d.aqi == null ? '--' : `${r(d.aqi)}`, ai[0] === '--' ? 'Indisponible' : ai[0], ai[1], d.aqi == null ? null : d.aqi) +
-    tile('Vent', `${r(c.wind_speed_10m)}<small>km/h</small>${arrow}`, `${q(compass(c.wind_direction_10m))} · rafales ${q(r(c.wind_gusts_10m) + ' km/h')}`, '', null) +
+    tile('Vent', `${r(c.wind_speed_10m)}<small>km/h</small>${arrow}`, `${q(compass(c.wind_direction_10m))} · rafales ${q(r(c.wind_gusts_10m) + ' km/h')}`, '', null, 'fit1') +
     tile('Humidité', `${r(c.relative_humidity_2m)}<small>%</small>`, '', 'cool', c.relative_humidity_2m) +
     tile('Gel 24 h', tmin == null ? '--' : `${String(r(tmin)).replace('-', '−')}<small>°C min</small>`, frostTxt, frostCls, null) +
     tile('Indice UV max', `${uv.toFixed(1)}`, uvI[0], uvI[1], uv / 11 * 100) +
@@ -613,6 +617,14 @@ function fitFonts(){
   root.setProperty('--fs', fs + 'px');
   while (fs > 14 && els.some(e => e.scrollWidth > e.clientWidth + 1)){ fs -= .5; root.setProperty('--fs', fs + 'px'); }
   document.body.classList.remove('measure');
+  document.querySelectorAll('#tiles .fit1').forEach(t => {
+    const a = [t.querySelector('.tv'), t.querySelector('.ts')].filter(Boolean);
+    a.forEach(e => { e.style.fontSize = ''; });
+    a.forEach(e => {
+      let f = parseFloat(getComputedStyle(e).fontSize);
+      while (f > 11 && e.scrollWidth > e.clientWidth + 1){ f -= .5; e.style.fontSize = f + 'px'; }
+    });
+  });
 }
 function render(d){ applyNight(d); renderAlerts(d); renderHero(d); renderTiles(d); renderHourly(d); renderDays(d); fitFonts(); }
 
