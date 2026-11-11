@@ -668,7 +668,7 @@ let lastTry = 0;
 function autoRefresh(){
   if (document.hidden) return;
   const d = cache[key(cities[idx])], now = Date.now();
-  if ((!d || now - d.at > 5 * 60 * 1000) && now - lastTry > 60 * 1000) refresh();
+  if ((!d || now - d.at > 2 * 60 * 1000) && now - lastTry > 30 * 1000) refresh();
 }
 function tick(){
   autoRefresh();
@@ -750,7 +750,7 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) return;
   tick(); wake();
   const d = cache[key(cities[idx])];
-  if (!d || Date.now() - d.at > 10 * 60 * 1000) refresh();
+  if (!d || Date.now() - d.at > 60 * 1000) refresh();
 });
 const fsEl = document.documentElement;
 const fsReq = fsEl.requestFullscreen || fsEl.webkitRequestFullscreen;
@@ -847,7 +847,7 @@ tick(); setInterval(tick, 15000);
 const first = cache[key(cities[idx])];
 if (first){ render(first); setStatus('ok', first.at); }
 refresh();
-setInterval(refresh, 15 * 60 * 1000);
+setInterval(refresh, 2 * 60 * 1000);
 wake();
 })();
 </script>
